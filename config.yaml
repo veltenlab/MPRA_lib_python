@@ -1,0 +1,9 @@
+input_files:
+  guide: "path/to/GUIDE.fastq.gz"
+  crs: "path/to/CRS.fastq.gz"
+  bc: "path/to/BC.fastq.gz"
+
+mode: "trans"  # Can be either "trans" or "ss"
+
+reference_guide: "path/to/reference_guide.fa" # Reference file can be given either in .fa or in .csv format
+reference_crs: "path/to/reference_crs.fa"
