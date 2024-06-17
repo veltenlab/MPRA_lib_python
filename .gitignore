@@ -4,4 +4,4 @@ data/*
 
 # Ignore everything in the results directory
 results/*
-!data/.gitkeep
+!results/.gitkeep
