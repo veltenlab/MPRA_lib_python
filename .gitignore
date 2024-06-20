@@ -5,3 +5,8 @@ data/*
 # Ignore everything in the results directory
 results/*
 !results/.gitkeep
+
+# Ignore running related things withhard coded data
+config_test.yaml
+.snakemake/*
+
