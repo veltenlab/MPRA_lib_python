@@ -1,9 +1,23 @@
+
+# Specify the MPRA dataset
+# All options: trans, ss, bulk
+mode: "trans"
+
+# Enter path to the corresponded fastq files
 input_files:
   guide: "path/to/GUIDE.fastq.gz"
-  crs: "path/to/CRS.fastq.gz"
   bc: "path/to/BC.fastq.gz"
+  crs: "path/to/CRS.fastq.gz"
+  crs_rev: "path/to/GUIDE.fastq.gz" # Only specify if the the mode is bulk and there are 2 fastq files for crs
 
-mode: "trans"  # Can be either "trans" or "ss"
+# Enter path to the reference files (either .csv or .fa)
+references:
+  reference_guide: "path/to/reference_guide.fa"
+  reference_crs: "path/to/reference_crs.fa"
 
-reference_guide: "path/to/reference_guide.fa" # Reference file can be given either in .fa or in .csv format
-reference_crs: "path/to/reference_crs.fa"
+# Enter output directory for the CRS-BC association .csv file and .Rmd report
+out_dir: "results/" 
+
+# Specify n of threads for the bwa alignment
+threads_bwa: 8
+
