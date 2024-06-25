@@ -1,16 +1,5 @@
 # MPRA_lib_python
 
-write me a readme for the github repository with a snakemake file with the following intro:
-
-This is an internal pipeline for the sequencing analysis of the data obtained from X experiment based on the following workflow:
-
-*insert image here
-
-In results directory, the results will be stored locally (output csv file with counts). 
-In the data directory, there is small example data extracted from the real experiments, so as the corresponding reference files. 
-It is applicable for all 3 modes, which have to be specified in the config file prior to running a pipeline, so as the full paths to the fastq files.
-
-
 # Sequencing Analysis Pipeline
 
 This is an internal pipeline for the sequencing analysis of the data obtained from MPRA experiments (transMPRA/ssMPRA/bulkMPRA) based on the following workflow:
