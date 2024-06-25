@@ -14,23 +14,22 @@ rule check_and_convert_reference:
         reference = lambda wildcards: config['references'][wildcards.sample]
     output:
         reference = "data/{sample}.fa"
+    always_run:
+        True
     run:
         reference = input.reference
         output = output.reference
         if reference.endswith(".csv"):
             shell(f"awk -F, '{{print \">{wildcards.sample}\"$1\"\\n\"$2}}' {reference} > {output}")
         else:
-            shell(f"cp {reference} {output}")
+            shell(f"cp -f {reference} {output}")
 
-# Rule to align the A FASTQ file using BWA mem
 rule align_guide:
     input:
         fastq = config["input_files"]["guide"],
         reference = "data/reference_guide.fa"
     output:
         bam = "results/alignment_guide.bam"
-    # conda:
-    #     "MPRA_env.yml"
     params:
         threads=config["threads_bwa"]
     shell:
@@ -39,15 +38,12 @@ rule align_guide:
         bwa mem -B 100 -O 100 -E 100 -t {params.threads} {input.reference} {input.fastq} | samtools view -b > {output.bam}
         """
 
-# Rule to align the B FASTQ file using BWA mem with specific parameters, only if mode is X
 rule align_crs:
     input:
         fastq = config["input_files"]["crs"],
         reference = "data/reference_crs.fa"   
     output:
         bam = "results/alignment_crs.bam"
-    # conda:
-    #     "MPRA_env.yml"
     params:
         threads = config["threads_bwa"]
     shell:
@@ -56,23 +52,21 @@ rule align_crs:
         bwa mem -t {params.threads} {input.reference} {input.fastq} | samtools view -b > {output.bam}
         """
 
-# rule align_crs_paired:
-#     input:
-#         reference = reference = "data/reference_crs.fa"
+rule align_crs_paired:
+    input:
+        reference = reference = "data/reference_crs.fa"
 
-#         FWD = config["input_files"]["crs"],
-#         REV = config["input_files"]["crs_rev"]
-#     output:
-#         bam = "results/alignment_crs.bam"
-#     conda:
-#        "MPRA_processing.yml"   
-#     params:
-#         threads=config["threads_bwa"]   
-#     log:
-#         OutDir+"/log_files/bwa_map/{Design}_{FastqDir}_{LibraryName}_bwa_map.log"
-#     shell:
-#         "bwa mem -a -t {params.threads} {input.design} {input.FWD} {input.REV} | samtools view -b > {output.bam} " 
-#         "2> {log}" 
+        FWD = config["input_files"]["crs"],
+        REV = config["input_files"]["crs_rev"]
+    output:
+        bam = "results/alignment_crs.bam" 
+    params:
+        threads=config["threads_bwa"]   
+    log:
+        OutDir+"/log_files/bwa_map/{Design}_{FastqDir}_{LibraryName}_bwa_map.log"
+    shell:
+        "bwa mem -a -t {params.threads} {input.design} {input.FWD} {input.REV} | samtools view -b > {output.bam} " 
+        "2> {log}" 
 
 # # Rule to process files with a Python script
 # rule process_files:
@@ -96,8 +90,30 @@ rule align_crs:
 #         Rscript -e "rmarkdown::render('scripts/generate_report.Rmd', params=list(input='{input.csv_gz}'), output_file='{output.html}')"
 #         """
 
-# # Conditional execution of align_B and subsequent steps based on the mode
-# if config["mode"] == "trans":
-#     include: ...
-# else:
-#     include: ...
+# Function to dynamically select the rules for step 1 based on mode
+def get_alignment_rules(mode):
+    if mode == "trans":
+        return ["align_guide", "align_crs"]
+    elif mode == "ss":
+        return ["align_crs"]
+    elif mode == "bulk":
+        return ["align_crs_paired"]
+    else:
+        raise ValueError(f"Unknown mode: {mode}")
+
+# Get the mode from the config file
+mode = config["mode"]
+
+# Dynamic selection of step 1 rules
+rule alignment:
+    output:
+        ["results/alignment_guide.bam", "results/alignment_crs.bam"] if mode == "trans" else ["results/alignment_crs.bam"]
+    run:
+        selected_rules = get_alignment_rules(mode)
+        for rule in selected_rules:
+            shell(f"snakemake {rule}")
+
+# Final rule to run the entire workflow
+rule all:
+    input:
+        "final_output.txt"

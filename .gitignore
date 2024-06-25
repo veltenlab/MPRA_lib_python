@@ -1,6 +1,7 @@
 # Ignore everything in the data directory
 data/*
 !data/.gitkeep
+!data/example_data/*
 
 # Ignore everything in the results directory
 results/*
