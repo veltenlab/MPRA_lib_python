@@ -8,6 +8,6 @@ results/*
 !results/.gitkeep
 
 # Ignore running related things withhard coded data
-config_test.yaml
+# config_test.yaml
 .snakemake/*
 

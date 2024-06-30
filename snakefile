@@ -1,6 +1,3 @@
-
-# logic: all needs crs.bam > 
- 
 import os
 
 configfile: "config_test.yaml"
@@ -23,13 +20,10 @@ rule check_and_convert_reference:
         reference = input.reference
         output = output.reference
         if reference.endswith(".csv"):
-            shell(r"""awk -F, '{{print ">"$1"\\n"$2}}' {input} > {output}""")
+            shell(r"""awk -F, '{{print ">"$1"\n"$2}}' {input} > {output}""")
         else:
             shell(f"cp -f {reference} {output}")
-            
-            
-            # awk -F, '{print ">"$1"\n"$2}' {wildcards.sample} > {output}
-            # awk -F, '{{print \">{wildcards.sample}\\n\"$2}}' {reference} > {output}
+
 
 # Rule to align guide
 rule align_trans:
@@ -73,7 +67,7 @@ rule align_bulk:
     input:
         reference = "data/reference_crs.fa",
         FWD = config["input_files"]["crs"],
-        REV = config["input_files"]["crs_rev"]
+        REV = config["input_files"]["crs_paired"]
     output:
         bam = "results/bulk/alignment_crs.bam"
     params:
@@ -84,15 +78,16 @@ rule align_bulk:
         bwa mem -t {params.threads} {input.reference} {input.FWD} {input.REV} | samtools view -b > {output.bam}
         """
          
-# # # Rule to process files with a Python script
-# # rule process_files:
-# #     input:
-# #         preprocess_guide = "results/alignment_guide.bam" if config["mode"] == "trans" else config["input_files"]["guide"],
-# #         preprocess_crs = "results/alignment_crs.bam" 
-# #     output:
-# #         csv_gz = "results/processed_data.csv.gz"
-# #     script:
-# #         "scripts/process_files.py"
+# Rule to process files with a Python script
+rule process_files:
+    input:
+        crs = f"results/{mode}/alignment_crs.bam",
+        bc = config["input_files"]["bc"]
+        guide = f"results/{mode}/alignment_guide.bam" if config["mode"] == "trans" else (config["input_files"]["guide"] if config["mode"] == "sc" else None),
+    output:
+        csv_gz = f"results/{mode}/counts_matrix.csv.gz"
+    script:
+        "scripts/process_files.py input.crs input.bc input."
 
 # # # Rule to generate the HTML report using R Markdown
 # # rule generate_report:
