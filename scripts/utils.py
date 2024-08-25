@@ -2,6 +2,7 @@
 import gzip
 import pysam
 import re
+import Levenshtein
 
 
 def count_reads(file_path):
@@ -79,59 +80,68 @@ def filter_bam_file(input_bam_path, output_bam_path):
         for alignment in best_alignments.values():
             output_bam.write(alignment)
 
-def get_next_barcode(guide_file, bc_file, mode="sc"):
+def get_next_barcode(guide_file, bc_file = None, mode = "sc"):
     """Function to generate next barcode
 
     Args:
         bc_file (fastq): fastq file with GFP barcodes seq
         guide_file (fastq): fastq file with gRNA barcodes seq
-        mode (str): str with the one of the mode names, taken from the snakemake config
 
     Returns:
         out (str): concantenated GFP barcode with the first 15 bp of the gRNA barcode
     """
-
     readname = None
     barcode = None
     guide = None
-    
+
     if mode == "trans":
-        # guide_file is a BAM file
-        bc_line = next(bc_file, None)
-        if bc_line is None:
-            return None
-        bc_line = bc_line.strip()
-        readname = bc_line.split()[0][1:]
-        barcode = bc_line
-        
+        print("trans")
+        bamfile = pysam.AlignmentFile(guide_file, "rb")
         try:
-            guide_alignment = next(guide_file)
-            guide = guide_alignment.query_name
+            alignment = next(bamfile)
+            readname = alignment.query_name
+            barcode = alignment.query_sequence
         except StopIteration:
-            return None
-        
-        return readname, barcode + guide
+            return None  # Indicate that EOF was reached
+        bamfile.close()
+
+        for i in range(1, 5):
+            bcline = bc_file.readline().rstrip('\n')
+            guideline = guide_file.readline().rstrip('\n')
+
+            # Check for EOF in either file
+            if not bcline or not guideline:
+                return None  # Indicate that EOF was reached or one file is shorter than the other
+
+            if i == 1:
+                readname = re.sub(r'^@(\S+)\s.+', r'\1', bcline)
+            elif i == 2:
+                barcode = bcline
+                guide = guideline
+
+        out = [readname, barcode + guide]
     
     else:
-        for i in range(4):
-            bcline = next(bc_file, None)
-            guideline = next(guide_file, None)
-            
-            if bcline is None or guideline is None:
-                return None
-            
-            bcline = bcline.strip()
-            guideline = guideline.strip()
-            
-            if i == 0:
-                readname = bcline
-            elif i == 1:
+        for i in range(1, 5):
+            bcline = bc_file.readline().rstrip('\n')
+            guideline = guide_file.readline().rstrip('\n')
+
+            # Check for EOF in either file
+            if not bcline or not guideline:
+                return None  # Indicate that EOF was reached or one file is shorter than the other
+
+            if i == 1:
+                readname = re.sub(r'^@(\S+)\s.+', r'\1', bcline)
+            elif i == 2:
                 barcode = bcline
-                guide = guideline if guideline else ''
-        
-        readname = readname.split()[0][1:]
-        
-        return readname, barcode + guide[:15]
+                guide = guideline
+
+        out = [readname, barcode + guide]
+    # print("new_fastq_barcode: ", out)
+    return out
+
+import re
+import pysam
 
 def concat_sequences(fastq_file_path, second_file_path, is_bam=False):
     """Concatenate sequences from a FastQ file and a second file which can be either FastQ or BAM.
@@ -220,11 +230,10 @@ def hamming_distance(string1, string2):
                 break  # Stop calculation once distance exceeds 3
     return distance
 
-def safe_concatenate(str1, str2):
-    # Convert None to an empty string for both inputs before concatenating
-    str1 = str1 if str1 is not None else ""
-    str2 = str2 if str2 is not None else ""
-    return str1 + str2
+
+
+import re
+import pysam
 
 def concat_sequences(fastq_file_path, second_file_path, is_bam=False):
     """Concatenate sequences from a FastQ file and a second file which can be either FastQ or BAM.
@@ -291,5 +300,59 @@ def concat_sequences(fastq_file_path, second_file_path, is_bam=False):
 
     return results
 
+def safe_concatenate(str1, str2):
+    # Convert None to an empty string for both inputs before concatenating
+    str1 = str1 if str1 is not None else ""
+    str2 = str2 if str2 is not None else ""
+    return str1 + str2
 
 
+def correct_barcodes(BC_CRS, CRS_BC):
+    BC_CRS_fixed = {}
+    nstep = 0
+    ncrs = len(CRS_BC)
+    removed_oneread = 0
+    total_mapped_reads = 0
+
+    for crs, barcodes in CRS_BC.items():
+        nstep += 1
+        BARCODES = list(barcodes)  # All barcodes mapping to a given CRS
+
+        # Calculate total reads
+        totreads = sum(BC_CRS[bc][2] for bc in BARCODES)
+        total_mapped_reads += totreads
+        print(f"Correcting barcodes for CRS {crs} with {len(BARCODES)} barcodes and {totreads} reads, {nstep} of {ncrs}")
+
+        # Filter (optional)
+        if len(BARCODES) > 1000:
+            removed_oneread += len([bc for bc in BARCODES if BC_CRS[bc][2] == 1])
+            BARCODES = [bc for bc in BARCODES if BC_CRS[bc][2] > 1]
+
+        # Sort BARCODES by number of reads
+        BARCODES.sort(key=lambda bc: BC_CRS[bc][2])
+
+        while BARCODES:
+            this_bc = BARCODES.pop(0)  # Start with the barcode with the least reads
+
+            matched = False
+            for target_bc in reversed(BARCODES):  # Compare with the barcode with the most reads first
+                if Levenshtein.distance(this_bc, target_bc, weights=(10,10,1)) <= 1:  # Adjust the threshold as needed
+                    if target_bc in BC_CRS_fixed:
+                        BC_CRS_fixed[target_bc][2] += BC_CRS[this_bc][2]  # Add read counts
+                        BC_CRS_fixed[target_bc][3] += BC_CRS[this_bc][3]  # Add deviant read counts
+                        BC_CRS_fixed[target_bc][1].extend(BC_CRS[this_bc][1])  # Append mapping statistics
+                    else:
+                        BC_CRS_fixed[target_bc] = BC_CRS[this_bc][:]  # Copy it over if not matched
+                    matched = True
+                    break
+
+            if not matched:
+                if this_bc in BC_CRS_fixed:
+                    BC_CRS_fixed[this_bc][2] += BC_CRS[this_bc][2]  # Add read counts
+                    BC_CRS_fixed[this_bc][3] += BC_CRS[this_bc][3]  # Add deviant read counts
+                    BC_CRS_fixed[this_bc][1].extend(BC_CRS[this_bc][1])  # Append mapping statistics
+                else:
+                    BC_CRS_fixed[this_bc] = BC_CRS[this_bc][:]  # Copy it over if not matched
+
+    print(removed_oneread)
+    return BC_CRS_fixed, total_mapped_reads

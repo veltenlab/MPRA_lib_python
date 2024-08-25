@@ -8,7 +8,8 @@ mode = config["mode"]
 # Rule for the final target
 rule all:
     input:
-        f"results/{mode}/alignment_crs.bam" if config["mode"] != "trans" else [f"results/{mode}/alignment_crs.bam", f"results/{mode}/alignment_guide.bam"]
+        f"results/{mode}/alignment_crs.bam" if config["mode"] != "trans" else [f"results/{mode}/alignment_crs.bam", f"results/{mode}/alignment_guide.bam"],
+        f"results/{mode}/counts_matrix.csv.gz"
 
 # Rule to check if reference exists and create .fa if necessary
 rule check_and_convert_reference:
@@ -41,8 +42,9 @@ rule align_trans:
     shell:
         """
         bwa index {input.reference_guide}
-        bwa mem -B 100 -O 100 -E 100 -t {params.threads} {input.reference_guide} {input.fastq_guide} | samtools view -b > {output.bam_guide}
-        
+        bwa aln -n 0 -o 0 -e 0 {input.reference_guide} {input.fastq_guide} | bwa samse {input.reference_guide} - {input.fastq_guide} | samtools view -b > {output.bam_guide}
+
+
         bwa index {input.reference_crs}
         bwa mem -t {params.threads} {input.reference_crs} {input.fastq_crs} | samtools view -b > {output.bam}
         """
@@ -82,12 +84,12 @@ rule align_bulk:
 rule process_files:
     input:
         crs = f"results/{mode}/alignment_crs.bam",
-        bc = config["input_files"]["bc"]
+        bc = config["input_files"]["bc"],
         guide = f"results/{mode}/alignment_guide.bam" if config["mode"] == "trans" else (config["input_files"]["guide"] if config["mode"] == "sc" else None),
     output:
-        csv_gz = f"results/{mode}/counts_matrix.csv.gz"
+        csv = f"results/{mode}/counts_matrix.csv.gz"
     script:
-        "scripts/process_files.py input.crs input.bc input."
+        "scripts/process_files.py input.crs input.bc input.guide output.csv"
 
 # # # Rule to generate the HTML report using R Markdown
 # # rule generate_report:

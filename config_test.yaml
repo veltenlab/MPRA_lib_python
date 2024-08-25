@@ -1,21 +1,21 @@
 
 # Specify the MPRA dataset
-# All options: trans, sc, bulk
-mode: trans
+# All options: TRANS, SC, BULK
+mode: SC
 
 # Enter path to the corresponded fastq files
 input_files:
 #trans
-  guide: "data/example_data/trans/guide_add.fastq.gz"
-  bc: "data/example_data/trans/bc.fastq.gz"
-  crs: "data/example_data/trans/crs.fastq.gz"
-  crs_paired: "path/to/paired_crs.fastq.gz"
+  # guide: "data/example_data.fastq.gz"
+  # bc: "data/example_data/trans/bc.fastq.gz"
+  # crs: "data/example_data/trans/crs.fastq.gz"
+  # crs_paired: "path/to/paired_crs.fastq.gz"
 
 # #sc
-#   guide: "data/example_data/sc/guide_add.fastq.gz"
-#   bc: "data/example_data/sc/bc.fastq.gz"
-#   crs: "data/example_data/sc/crs.fastq.gz"
-#   crs_paired: "path/to/paired_crs.fastq.gz"
+  guide: "data/example_data/sc/guide_add.fastq.gz"
+  bc: "data/example_data/sc/bc.fastq.gz"
+  crs: "data/example_data/sc/crs.fastq.gz"
+  crs_paired: "data/example_data/sc/crs_paired.fastq.gz"
 
 # # bulk
 #   guide: "path/to/guide.fastq.gz"
@@ -28,9 +28,10 @@ input_files:
 
 # Enter path to the reference files (either .csv or .fa)
 # references: ["/home/vdragan/cluster/vdragan/MPRA_lib_python/data/example_data/gRNA_seqs.csv", "/home/vdragan/cluster/vdragan/MPRA_lib_python/data/example_data/merged_ref_GRE.fa"]
+
 references:
-  reference_guide: "/home/vdragan/cluster/vdragan/MPRA_lib_python/data/example_data/gRNA_seqs.csv"
-  reference_crs: "/home/vdragan/cluster/vdragan/MPRA_lib_python/data/example_data/merged_ref_GRE.fa"
+  reference_guide: "/home/lera/MPRA_lib_python/data/example_data/gRNA_seqs.csv"
+  reference_crs: "/home/lera/MPRA_lib_python/data/example_data/GRE_seqs.fa"
 
 # Enter output directory for the CRS-BC association .csv file and .Rmd report
 out_dir: "results/" 
