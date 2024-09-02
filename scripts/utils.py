@@ -95,30 +95,26 @@ def get_next_barcode(guide_file, bc_file = None, mode = "sc"):
     guide = None
 
     if mode == "trans":
-        print("trans")
-        bamfile = pysam.AlignmentFile(guide_file, "rb")
         try:
-            alignment = next(bamfile)
+            alignment = next(guide_file)
             readname = alignment.query_name
             barcode = alignment.query_sequence
+            guide = guide_file.get_reference_name(alignment.reference_id)
         except StopIteration:
             return None  # Indicate that EOF was reached
-        bamfile.close()
 
         for i in range(1, 5):
             bcline = bc_file.readline().rstrip('\n')
-            guideline = guide_file.readline().rstrip('\n')
+            # guideline = guide_file.readline().rstrip('\n')
 
             # Check for EOF in either file
-            if not bcline or not guideline:
+            if not bcline:
                 return None  # Indicate that EOF was reached or one file is shorter than the other
 
             if i == 1:
                 readname = re.sub(r'^@(\S+)\s.+', r'\1', bcline)
             elif i == 2:
                 barcode = bcline
-                guide = guideline
-
         out = [readname, barcode + guide]
     
     else:
@@ -135,13 +131,9 @@ def get_next_barcode(guide_file, bc_file = None, mode = "sc"):
             elif i == 2:
                 barcode = bcline
                 guide = guideline
-
         out = [readname, barcode + guide]
     # print("new_fastq_barcode: ", out)
     return out
-
-import re
-import pysam
 
 def concat_sequences(fastq_file_path, second_file_path, is_bam=False):
     """Concatenate sequences from a FastQ file and a second file which can be either FastQ or BAM.
@@ -231,10 +223,6 @@ def hamming_distance(string1, string2):
     return distance
 
 
-
-import re
-import pysam
-
 def concat_sequences(fastq_file_path, second_file_path, is_bam=False):
     """Concatenate sequences from a FastQ file and a second file which can be either FastQ or BAM.
 
@@ -321,7 +309,7 @@ def correct_barcodes(BC_CRS, CRS_BC):
         # Calculate total reads
         totreads = sum(BC_CRS[bc][2] for bc in BARCODES)
         total_mapped_reads += totreads
-        print(f"Correcting barcodes for CRS {crs} with {len(BARCODES)} barcodes and {totreads} reads, {nstep} of {ncrs}")
+        #print(f"Correcting barcodes for CRS {crs} with {len(BARCODES)} barcodes and {totreads} reads, {nstep} of {ncrs}")
 
         # Filter (optional)
         if len(BARCODES) > 1000:
@@ -354,5 +342,4 @@ def correct_barcodes(BC_CRS, CRS_BC):
                 else:
                     BC_CRS_fixed[this_bc] = BC_CRS[this_bc][:]  # Copy it over if not matched
 
-    print(removed_oneread)
     return BC_CRS_fixed, total_mapped_reads

@@ -1,15 +1,17 @@
 import os
+from datetime import datetime
 
 configfile: "config_test.yaml"
 # Get the mode from the config file
 
 mode = config["mode"]
+timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
 # Rule for the final target
 rule all:
     input:
         f"results/{mode}/alignment_crs.bam" if config["mode"] != "trans" else [f"results/{mode}/alignment_crs.bam", f"results/{mode}/alignment_guide.bam"],
-        f"results/{mode}/counts_matrix.csv.gz"
+        f"results/{mode}/counts_matrix_{timestamp}.csv.gz"
 
 # Rule to check if reference exists and create .fa if necessary
 rule check_and_convert_reference:
@@ -23,6 +25,7 @@ rule check_and_convert_reference:
         if reference.endswith(".csv"):
             shell(r"""awk -F, '{{print ">"$1"\n"$2}}' {input} > {output}""")
         else:
+            shell("echo 'Preparing reference file'")
             shell(f"cp -f {reference} {output}")
 
 
@@ -30,10 +33,10 @@ rule check_and_convert_reference:
 rule align_trans:
     input:
         fastq_guide = config["input_files"]["guide"],
-        reference_guide = "data/reference_guide.fa",
+        reference_guide = config["references"]["reference_guide"],
         
         fastq_crs = config["input_files"]["crs"],
-        reference_crs = "data/reference_crs.fa"
+        reference_crs = config["references"]["reference_crs"]
     output:
         bam_guide = "results/trans/alignment_guide.bam",
         bam = "results/trans/alignment_crs.bam"
@@ -41,6 +44,8 @@ rule align_trans:
         threads = config["threads_bwa"]
     shell:
         """
+        echo "Running trans alignment"
+
         bwa index {input.reference_guide}
         bwa aln -n 0 -o 0 -e 0 {input.reference_guide} {input.fastq_guide} | bwa samse {input.reference_guide} - {input.fastq_guide} | samtools view -b > {output.bam_guide}
 
@@ -53,13 +58,15 @@ rule align_trans:
 rule align_sc:
     input:
         fastq = config["input_files"]["crs"],
-        reference = "data/reference_crs.fa"
+        reference = config["references"]["reference_crs"]
     output:
         bam = "results/sc/alignment_crs.bam"
     params:
         threads = config["threads_bwa"]
     shell:
         """
+        echo "Running sc alignment"
+
         bwa index {input.reference}
         bwa mem -t {params.threads} {input.reference} {input.fastq} | samtools view -b > {output.bam}
         """
@@ -67,7 +74,7 @@ rule align_sc:
 # Rule to align crs with paired-end reads
 rule align_bulk:
     input:
-        reference = "data/reference_crs.fa",
+        reference = config["references"]["reference_guide"],
         FWD = config["input_files"]["crs"],
         REV = config["input_files"]["crs_paired"]
     output:
@@ -76,6 +83,8 @@ rule align_bulk:
         threads = config["threads_bwa"]
     shell:
         """
+        echo "Running bulk alignment"
+
         bwa index {input.reference}
         bwa mem -t {params.threads} {input.reference} {input.FWD} {input.REV} | samtools view -b > {output.bam}
         """
@@ -85,11 +94,14 @@ rule process_files:
     input:
         crs = f"results/{mode}/alignment_crs.bam",
         bc = config["input_files"]["bc"],
-        guide = f"results/{mode}/alignment_guide.bam" if config["mode"] == "trans" else (config["input_files"]["guide"] if config["mode"] == "sc" else None),
+        guide = f"results/{mode}/alignment_guide.bam" if mode == "trans" else (config["input_files"]["guide"] if mode == "sc" else None),
     output:
-        csv = f"results/{mode}/counts_matrix.csv.gz"
-    script:
-        "scripts/process_files.py input.crs input.bc input.guide output.csv"
+        csv = f"results/{mode}/counts_matrix_{timestamp}.csv.gz"
+    shell:
+        """
+        echo "Creating association library"
+        python scripts/association.py {mode} {input.crs} {input.bc} {input.guide} {output.csv}
+        """
 
 # # # Rule to generate the HTML report using R Markdown
 # # rule generate_report:

@@ -1,27 +1,26 @@
-
 # Specify the MPRA dataset
-# All options: TRANS, SC, BULK
-mode: SC
+# All options: trans, sc, bulk
+mode: trans
 
 # Enter path to the corresponded fastq files
 input_files:
 #trans
-  # guide: "data/example_data.fastq.gz"
-  # bc: "data/example_data/trans/bc.fastq.gz"
-  # crs: "data/example_data/trans/crs.fastq.gz"
-  # crs_paired: "path/to/paired_crs.fastq.gz"
+  guide: "data/example_data/trans/guide.fastq.gz"
+  bc: "data/example_data/trans/bc.fastq.gz"
+  crs: "data/example_data/trans/crs.fastq.gz"
+  crs_paired: "path/to/paired_crs.fastq.gz"
 
 # #sc
-  guide: "data/example_data/sc/guide_add.fastq.gz"
-  bc: "data/example_data/sc/bc.fastq.gz"
-  crs: "data/example_data/sc/crs.fastq.gz"
-  crs_paired: "data/example_data/sc/crs_paired.fastq.gz"
+  # guide: "data/example_data/sc/guide.fastq.gz"
+  # bc: "data/example_data/sc/bc.fastq.gz"
+  # crs: "data/example_data/sc/crs.fastq.gz"
+  # crs_paired: "data/example_data/sc/crs_paired.fastq.gz"
 
 # # bulk
-#   guide: "path/to/guide.fastq.gz"
-#   bc: "data/example_data/bulk/bc.fastq.gz"
-#   crs: "data/example_data/bulk/crs.fastq.gz"
-#   crs_paired: "data/example_data/bulk/crs_paired.fastq.gz" # Only specify if the the mode is bulk and there are 2 fastq files for crs
+  # guide: "path/to/guide.fastq.gz"
+  # bc: "data/example_data/bulk/bc.fastq.gz"
+  # crs: "data/example_data/bulk/crs.fastq.gz"
+  # crs_paired: "data/example_data/bulk/crs_paired.fastq.gz" # Only specify if the the mode is bulk and there are 2 fastq files for crs
 
 #   crs: /home/vdragan/cluster/sequencing_data/Chelsea_Szu-Tu/2024-06-04_AHCHHFAFX7/VELTENLAR_98/LIBVAS_lib_08533AAF_ACGTAGACCA_R2_001.fastq.gz
 #   crs_paired: /home/vdragan/cluster/sequencing_data/Chelsea_Szu-Tu/2024-06-04_AHCHHFAFX7/VELTENLAR_98/LIBVAS_lib_08533AAF_ACGTAGACCA_R3_001.fastq.gz
@@ -30,8 +29,8 @@ input_files:
 # references: ["/home/vdragan/cluster/vdragan/MPRA_lib_python/data/example_data/gRNA_seqs.csv", "/home/vdragan/cluster/vdragan/MPRA_lib_python/data/example_data/merged_ref_GRE.fa"]
 
 references:
-  reference_guide: "/home/lera/MPRA_lib_python/data/example_data/gRNA_seqs.csv"
-  reference_crs: "/home/lera/MPRA_lib_python/data/example_data/GRE_seqs.fa"
+  reference_guide: "data/example_data/gRNA_seqs.csv"
+  reference_crs: "data/example_data/GRE_seqs.fa"
 
 # Enter output directory for the CRS-BC association .csv file and .Rmd report
 out_dir: "results/" 
