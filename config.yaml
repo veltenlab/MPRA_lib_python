@@ -1,0 +1,27 @@
+"""
+This is a config file that has to be adjusted for the actual run, see comments below for details
+!!! Note that the functional element can be called both CRS (cis-regulatory sequence) and CRE (cir-regulatory element)
+"""
+
+# Specify the MPRA dataset
+# All options: trans, sc, bulk
+mode: trans
+
+# Enter path to the corresponded fastq files
+input_files:
+  guide: "path/to/guide.fastq.gz"
+  bc: "path/to/bc.fastq.gz"
+  crs: "path/to/crs.fastq.gz"
+  crs_paired: "path/to/paired_crs.fastq.gz"
+
+# Enter path to the reference files (either .csv or .fa)
+references:
+  reference_guide: "path/to/gRNA_reference"
+  reference_crs: "path/to/GRE_reference"
+
+# Enter output directory for the aligned bam files, CRS-BC association .csv file and .Rmd report
+out_dir: "path/to/results/" 
+
+# Specify n of threads for the bwa alignment
+threads_bwa: 1
+

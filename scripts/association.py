@@ -1,0 +1,163 @@
+"""
+"""
+
+import gzip
+import pysam
+import sys
+
+from collections import defaultdict
+
+from utils import *
+
+# Check if at least one argument is provided
+if len(sys.argv) != 6:
+    print("Usage: association.py <mode> <bc_file> <guide_file> <crs_file> <outfile>", file=sys.stderr)
+    sys.exit(1)
+
+# Save the arguments given from argv
+mode, crs_file_path, bc_file_path, guide_file_path, outfile = sys.argv[1:]
+
+BC_CRS_raw = defaultdict(dict)
+counter = 0
+maps_score = {}
+maps_count_fwd = {}
+maps_count_rev = {}
+
+# Create the first BC_CRS_raw dictionary by reading bc and crs files, then guide file mode-specific
+with gzip.open(bc_file_path, 'rt') as bc_file, \
+        pysam.AlignmentFile(crs_file_path, 'rb') as crs_file:
+        if mode == "trans":
+            guide_file = pysam.AlignmentFile(guide_file_path, 'rb')
+        elif mode == "sc":
+            guide_file = gzip.open(guide_file_path, 'rt')               
+        try:
+            # Generate the bc sequence
+            readname_fastq, bcline_fastq = get_next_barcode(guide_file, bc_file, mode)
+
+            if readname_fastq is None:
+                print("No barcodes found", file=sys.stderr)
+                sys.exit(1)
+
+            for bamline in crs_file:
+
+                bits = format(bamline.flag, '05b')[::-1]  # Parse flags
+                bam_ref = crs_file.get_reference_name(bamline.reference_id)
+
+                # If there is more than one alignment for a sequence, check for orientation and amount of reads
+                if bamline.query_name != readname_fastq:
+                    if mode == "bulk":
+                        considered = [k for k in maps_score if maps_count_fwd.get(k, 0) == 1 and maps_count_rev.get(k, 0) == 1]
+                    else:
+                        considered = [k for k in maps_score if maps_count_fwd.get(k, 0) == 0 and maps_count_rev.get(k, 0) == 1]
+                
+                    if len(considered) == 1:
+                        selectedmap = considered[0]
+                        score = maps_score[selectedmap]
+                    elif len(considered) > 1:
+                        sorted_considered = sorted(considered, key=lambda x: maps_score[x], reverse=True)
+                        selectedmap = sorted_considered[0]
+                        score = maps_score[selectedmap]
+
+                    if considered and selectedmap != "*":
+                        if bcline_fastq in BC_CRS_raw:
+                            if selectedmap in BC_CRS_raw[bcline_fastq]:
+                                BC_CRS_raw[bcline_fastq][selectedmap][0].append(score)
+                                BC_CRS_raw[bcline_fastq][selectedmap][1] += 1
+                            else:
+                                BC_CRS_raw[bcline_fastq][selectedmap] = [[score], 1]
+                        else:
+                            BC_CRS_raw[bcline_fastq] = {selectedmap: [[score], 1]}
+
+                    maps_score = {}
+                    maps_count_fwd = {}
+                    maps_count_rev = {}
+
+                    readname_fastq, bcline_fastq = get_next_barcode(guide_file, bc_file, mode)
+
+                    if readname_fastq is None:
+                        print("No barcodes found", file=sys.stderr)
+                        sys.exit(1)
+
+                    counter += 1
+                    
+                    if bamline.query_name != readname_fastq:
+                        print("Something is wrong", file=sys.stderr)
+                        sys.exit(1)
+
+                if bam_ref in maps_score:
+                    maps_score[bam_ref] += cigar_to_score(bamline.cigar)
+                    if bits[4] == "1":
+                        maps_count_rev[bam_ref] += 1
+                    else:
+                        maps_count_fwd[bam_ref] += 1
+                else:
+                    maps_score[bam_ref] = cigar_to_score(bamline.cigar)
+                    maps_count_rev[bam_ref] = int(bits[4])
+                    maps_count_fwd[bam_ref] = 1 - int(bits[4])
+        finally:
+        # Ensure the guide_file is properly closed
+            guide_file.close()
+
+
+# Clean up multiple alignments and only keep one crs per barcode as a main alignment (highest reads count)
+total_reads = 0
+BC_CRS = defaultdict(list)
+for barcode, crs in BC_CRS_raw.items():
+    total_reads += sum(count for _, (score, count) in crs.items())
+    sorted_crs = sorted(crs, key=lambda x: crs[x][1], reverse=True)
+    current = sorted_crs[0]
+
+    BC_CRS[barcode] = [current, crs[current][0], crs[current][1], 0]
+    for c in sorted_crs[1:]:
+        BC_CRS[barcode][3] += crs[c][1]
+print(f"Cleaned dictionary BC_CRS with the length {len(BC_CRS)} was created")
+
+###
+
+# # Print head of the cleaned dic to make sure it was created correctly
+# for key, value in islice(CRS_BC.items(), 5):
+#     print(f"{key}: {value}")
+
+###
+
+# Revert dictionary to the crs-bc association from bc-crs
+CRS_BC = defaultdict(list)
+
+# Create a hash that maps each CRS to a list of barcodes (from BC:CRS zu CRS:BC)
+for barcode, crs in BC_CRS.items():
+    CRS_BC[crs[0]].append(barcode)
+print("Completed creating CRS_BC")
+print("CRS_BC length: :", len(CRS_BC))
+
+
+# Correct barcodes
+BC_CRS_fixed, total_mapped_reads = correct_barcodes(BC_CRS, CRS_BC)
+
+print(f"Total mapped reads: {total_mapped_reads}")
+print(f"Length of BC_CRS: {len(BC_CRS)}")
+print(f"Length of BC_CRS_fixed: {len(BC_CRS_fixed)}")
+
+###
+
+# # Print head of the created BC_CRS_fixed after barcode correction
+# for key, value in islice(BC_CRS_fixed.items(), 5):
+#     print(f"{key}: {value}")
+
+###
+
+# Save the information about barcodes and corresponding crs sequences in a csv.gz file
+with gzip.open(outfile, 'wt') as out:
+    # Write the header
+    out.write("BARCODE\tREF\tREADS\tDEVIANTREADS\tMEANMATCHES\tMINMATCHES\tMAXMATCHES\n")
+    count = 0
+    # Iterate over each barcode in BC_CRS_fixed dictionary
+    for barcode, crs in BC_CRS_fixed.items():
+        # Calculate mean, min, and max matches
+        mean_matches = format_number(sum(crs[1]) / len(crs[1])) if crs[1] else 0
+        min_matches = min(crs[1]) if crs[1] else 0
+        max_matches = max(crs[1]) if crs[1] else 0
+        
+        # Create the line to write to the output file
+        line = f"{barcode}\t{crs[0]}\t{crs[2]}\t{crs[3]}\t{mean_matches}\t{min_matches}\t{max_matches}\n"
+        # Write the line to the output file
+        out.write(line)
