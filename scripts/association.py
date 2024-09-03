@@ -148,7 +148,7 @@ print(f"Length of BC_CRS_fixed: {len(BC_CRS_fixed)}")
 # Save the information about barcodes and corresponding crs sequences in a csv.gz file
 with gzip.open(outfile, 'wt') as out:
     # Write the header
-    out.write("BARCODE\tREF\tREADS\tDEVIANTREADS\tMEANMATCHES\tMINMATCHES\tMAXMATCHES\n")
+    out.write("BARCODE\tCRS\tREADS\tDEVIANTREADS\tMEANMATCHES\tMINMATCHES\tMAXMATCHES\n")
     count = 0
     # Iterate over each barcode in BC_CRS_fixed dictionary
     for barcode, crs in BC_CRS_fixed.items():
