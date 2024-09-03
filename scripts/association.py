@@ -1,4 +1,5 @@
 """
+This is a script re
 """
 
 import gzip
@@ -23,6 +24,9 @@ maps_score = {}
 maps_count_fwd = {}
 maps_count_rev = {}
 
+#################################################
+####      Mapping barcodes and alignments    ####
+#################################################
 # Create the first BC_CRS_raw dictionary by reading bc and crs files, then guide file mode-specific
 with gzip.open(bc_file_path, 'rt') as bc_file, \
         pysam.AlignmentFile(crs_file_path, 'rb') as crs_file:
@@ -98,8 +102,12 @@ with gzip.open(bc_file_path, 'rt') as bc_file, \
         # Ensure the guide_file is properly closed
             guide_file.close()
 
+#############################################
+####       Clean up multiple assignments#####
+#############################################
+#There are some barcodes that get assigned to multiple CRS. actually this happens a lot. In these cases count how often this happens but assign the barcode to the
+# CRS that is supported with more reads, buty report the number of reads supporting a different assignment. This does not remove anything 
 
-# Clean up multiple alignments and only keep one crs per barcode as a main alignment (highest reads count)
 total_reads = 0
 BC_CRS = defaultdict(list)
 for barcode, crs in BC_CRS_raw.items():
@@ -130,7 +138,12 @@ print("Completed creating CRS_BC")
 print("CRS_BC length: :", len(CRS_BC))
 
 
-# Correct barcodes
+#############################################
+####        Run barcode correction      #####
+#############################################
+# If two barcodes map to the same CRS and are similar, add the less abundant barcode to the more abundant one
+# Rank barcodes per CRS by the read counts and start with comparison of barcode with the lowest to one with the highest read counts
+
 BC_CRS_fixed, total_mapped_reads = correct_barcodes(BC_CRS, CRS_BC)
 
 print(f"Total mapped reads: {total_mapped_reads}")
@@ -144,8 +157,11 @@ print(f"Length of BC_CRS_fixed: {len(BC_CRS_fixed)}")
 #     print(f"{key}: {value}")
 
 ###
-
+#############################################
+####         Output results to csv       ####
+#############################################
 # Save the information about barcodes and corresponding crs sequences in a csv.gz file
+s
 with gzip.open(outfile, 'wt') as out:
     # Write the header
     out.write("BARCODE\tCRS\tREADS\tDEVIANTREADS\tMEANMATCHES\tMINMATCHES\tMAXMATCHES\n")

@@ -28,9 +28,6 @@ input_files:
   # crs: "data/example_data/bulk/crs.fastq.gz"
   # crs_paired: "data/example_data/bulk/crs_paired.fastq.gz" # Only specify if the the mode is bulk and there are 2 fastq files for crs
 
-#   crs: /home/vdragan/cluster/sequencing_data/Chelsea_Szu-Tu/2024-06-04_AHCHHFAFX7/VELTENLAR_98/LIBVAS_lib_08533AAF_ACGTAGACCA_R2_001.fastq.gz
-#   crs_paired: /home/vdragan/cluster/sequencing_data/Chelsea_Szu-Tu/2024-06-04_AHCHHFAFX7/VELTENLAR_98/LIBVAS_lib_08533AAF_ACGTAGACCA_R3_001.fastq.gz
-
 # Enter path to the reference files (either .csv or .fa)
 references:
   reference_guide: "data/example_data/gRNA_seqs.csv"
