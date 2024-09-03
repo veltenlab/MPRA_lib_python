@@ -57,10 +57,4 @@ You can test the `snakefile` using the provided `config_test.yaml` and example d
 
    ```bash
    snakemake --configfile config_test.yaml --cores 1 --use-conda
-
-
-
-
-
-
-
+   ```
