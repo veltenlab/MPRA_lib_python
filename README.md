@@ -4,7 +4,9 @@
 
 This is an internal pipeline for the sequencing analysis of the data obtained from MPRA experiments (transMPRA/scMPRA/bulkMPRA) based on the following workflow:
 
-![Workflow Image](modes.jpg)
+<p align="center">
+  <img src="modes.jpg" alt="Description" width="300"/>
+</p>
 
 ## Directory Structure
 
