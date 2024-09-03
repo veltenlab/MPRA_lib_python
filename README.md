@@ -4,7 +4,9 @@
 
 This is an internal pipeline for the sequencing analysis of the data obtained from MPRA experiments (transMPRA/scMPRA/bulkMPRA) based on the following workflow:
 
-![Workflow Image](path/to/workflow_image.png)
+<p align="center">
+  <img src="modes.jpg" alt="Description" width="400"/>
+</p>
 
 ## Directory Structure
 
@@ -21,7 +23,7 @@ This is an internal pipeline for the sequencing analysis of the data obtained fr
 git clone git@github.com:veltenlab/MPRA_lib_python.git
 ```
 2. Change directory to the repository: `cd MPRA_lib_python`
-3. Install the conda environment. It is recommended to use mamba [mamba](https://mamba.readthedocs.io/en/latest/index.html) or [miniconda](https://docs.anaconda.com/miniconda/miniconda-install/)
+3. Install the conda environment. It is recommended to use [mamba](https://mamba.readthedocs.io/en/latest/index.html) or [miniconda](https://docs.anaconda.com/miniconda/miniconda-install/)
 
 ```shell
 conda env create -n MPRA_env -f MPRA_env.yaml 
@@ -32,7 +34,7 @@ conda env create -n MPRA_env -f MPRA_env.yaml
 
 The pipeline is applicable for 3 modes: TRANS, SC and BULK, which need to be specified in the config file prior to running the pipeline. Additionally, full paths to the FASTQ files must be provided in the config file.
 
-## Quick start: Customize pipeline
+## Quick start: Configuration
 
 Before running a snakefile, config.yaml file has to be customized:
 - choose the type of the performed MPRA experiment (trans/sc/bulk)
@@ -55,10 +57,4 @@ You can test the `snakefile` using the provided `config_test.yaml` and example d
 
    ```bash
    snakemake --configfile config_test.yaml --cores 1 --use-conda
-
-
-
-
-
-
-
+   ```
