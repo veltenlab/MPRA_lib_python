@@ -12,3 +12,6 @@ results/*
 # config_test.yaml
 .snakemake/*
 
+# Also, ignore python cache directories
+**/__pycache__/**
+
