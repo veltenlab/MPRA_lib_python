@@ -115,7 +115,8 @@ def get_next_barcode(guide_file, bc_file = None, mode = "sc"):
                 readname = re.sub(r'^@(\S+)\s.+', r'\1', bcline)
             elif i == 2:
                 barcode = bcline
-        out = [readname, barcode + guide]
+        # Barcode and guide sequences are separated by the vertical line to be able to separate them later
+        out = [readname, f"{barcode}|{guide}"]
     
     else:
         for i in range(1, 5):

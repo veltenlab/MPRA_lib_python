@@ -1,13 +1,14 @@
-import os
-from datetime import datetime
+"""
+This is a snakemake pipeline file with rules for the sequencing processing
+It consists of 3 main steps: alignment, association and vizualisation
+"""
 
-configfile: "config_test.yaml"
-# Get the mode from the config file
+from datetime import datetime
 
 mode = config["mode"]
 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
-# Rule for the final target
+# Rule for the final target, I specified here both outputs from alignment and association steps
 rule all:
     input:
         f"results/{mode}/alignment_crs.bam" if config["mode"] != "trans" else [f"results/{mode}/alignment_crs.bam", f"results/{mode}/alignment_guide.bam"],
@@ -33,10 +34,10 @@ rule check_and_convert_reference:
 rule align_trans:
     input:
         fastq_guide = config["input_files"]["guide"],
-        reference_guide = config["references"]["reference_guide"],
+        reference_guide = "data/reference_guide.fa",
         
         fastq_crs = config["input_files"]["crs"],
-        reference_crs = config["references"]["reference_crs"]
+        reference_crs = "data/reference_crs.fa"
     output:
         bam_guide = "results/trans/alignment_guide.bam",
         bam = "results/trans/alignment_crs.bam"
@@ -58,7 +59,7 @@ rule align_trans:
 rule align_sc:
     input:
         fastq = config["input_files"]["crs"],
-        reference = config["references"]["reference_crs"]
+        reference = "data/reference_crs.fa"
     output:
         bam = "results/sc/alignment_crs.bam"
     params:
@@ -74,7 +75,7 @@ rule align_sc:
 # Rule to align crs with paired-end reads
 rule align_bulk:
     input:
-        reference = config["references"]["reference_guide"],
+        reference = "data/reference_crs.fa",
         FWD = config["input_files"]["crs"],
         REV = config["input_files"]["crs_paired"]
     output:
@@ -89,7 +90,7 @@ rule align_bulk:
         bwa mem -t {params.threads} {input.reference} {input.FWD} {input.REV} | samtools view -b > {output.bam}
         """
          
-# Rule to process files with a Python script
+# Rule to process files with Python script and create an association library
 rule process_files:
     input:
         crs = f"results/{mode}/alignment_crs.bam",
@@ -103,14 +104,26 @@ rule process_files:
         python scripts/association.py {mode} {input.crs} {input.bc} {input.guide} {output.csv}
         """
 
-# # # Rule to generate the HTML report using R Markdown
-# # rule generate_report:
-# #     input:
-# #         csv_gz = "results/processed_data.csv.gz"
-# #     output:
-# #         html = "results/final_report.html"
-# #     shell:
-# #         """
-# #         {load_modules()}
-# #         Rscript -e "rmarkdown::render('scripts/generate_report.Rmd', params=list(input='{input.csv_gz}'), output_file='{output.html}')"
-# #         """
+# # Rule to generate the HTML report using R Markdown
+# rule generate_report:
+#     input:
+#         rmd = "scripts/generate_report.Rmd"
+#         csv_gz = f"results/{mode}/counts_matrix_{timestamp}.csv.gz"
+#     output:
+#         html = f"results/{mode}/report_{timestamp}.csv.gz"
+#     shell:
+#         """
+#         {load_modules()}
+#         Rscript -e "rmarkdown::render('scripts/generate_report.Rmd', params=list(input='{input.csv_gz}'), output_file='{output.html}')"
+#         Rscript -e "rmarkdown::render(input = '{input.rmd}', output_file = '{output}', params = list(data_file = '{input.data}'))"
+#         ""
+
+# rule render_rmarkdown:
+#     input:
+#         "report.Rmd"
+#     output:
+#         "report.html"
+#     script:
+#         """
+#         Rscript -e "rmarkdown::render('{input}', output_file='{output}')"
+#         """
