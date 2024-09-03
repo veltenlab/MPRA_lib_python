@@ -26,7 +26,7 @@ git clone git@github.com:veltenlab/MPRA_lib_python.git
 ```shell
 conda env create -n MPRA_env -f MPRA_env.yaml 
 ```
-4. Activate the environment: `mamba activate MPRA_env`
+4. Activate the environment: `conda activate MPRA_env`
 
 ## Configuration
 
@@ -38,6 +38,23 @@ Before running a snakefile, config.yaml file has to be customized:
 - choose the type of the performed MPRA experiment (trans/sc/bulk)
 - add data paths for sequencing data
 - adjust the number of threads used for alignment
+
+## Test
+
+You can test the `snakefile` using the provided `config_test.yaml` and example data to ensure that the workflow runs correctly in your environment.
+
+1. **Prepare the Environment**  
+   Ensure that all dependencies are installed as outlined in the [Installation](#installation) section.
+
+2. **Locate Test Files**  
+   The test configuration file `config_test.yaml` and the example data are included in the repository.
+   You can choose the mode you want to test by adjust config_test file, see details inside of it.
+
+3. **Run the Test**  
+   Execute the Snakemake workflow with the test configuration by running the following command in your terminal:
+
+   ```bash
+   snakemake --configfile config_test.yaml --cores 1 --use-conda
 
 
 
