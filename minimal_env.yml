@@ -1,0 +1,11 @@
+name: minimal-env
+channels:
+  - defaults
+  - conda-forge
+  - bioconda
+dependencies:
+  - python=3.10
+  - snakemake
+  - bwa
+  - pysam
+  - levenshtein

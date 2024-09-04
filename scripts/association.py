@@ -1,5 +1,6 @@
 """
-This is a script re
+This is a script that takes sequencing and aligned files and aligns matches them together, creating an association library
+This library will be later used to identify which barcode corresponds to which tested CRS
 """
 
 import gzip
@@ -161,7 +162,6 @@ print(f"Length of BC_CRS_fixed: {len(BC_CRS_fixed)}")
 ####         Output results to csv       ####
 #############################################
 # Save the information about barcodes and corresponding crs sequences in a csv.gz file
-s
 with gzip.open(outfile, 'wt') as out:
     # Write the header
     out.write("BARCODE\tCRS\tREADS\tDEVIANTREADS\tMEANMATCHES\tMINMATCHES\tMAXMATCHES\n")

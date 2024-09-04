@@ -1,7 +1,6 @@
-"""
-This is a config file that has to be adjusted for the actual run, see comments below for details
-!!! Note that the functional element can be called both CRS (cis-regulatory sequence) and CRE (cir-regulatory element)
-"""
+# This is a config file that has to be adjusted for the actual run, see comments below for details
+# !!! Note that the functional element can be called both CRS (cis-regulatory sequence) and CRE (cir-regulatory element)
+
 
 # Specify the MPRA dataset
 # All options: trans, sc, bulk

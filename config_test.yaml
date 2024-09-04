@@ -1,8 +1,6 @@
-# """
 # This is a test config file with 3 small examples for each output
 # In order to test a certain output, change the mode and uncomment the corresponding input_files (marked with mode name)
-# !!! Note that the functional element can be called both CRS (cis-regulatory sequence) and CRE (cir-regulatory element)
-# """
+# !!! Note that the functional element can be called both CRS (cis-regulatory sequence) and CRE (cir-regulatory element) 
 
 # Specify the MPRA dataset
 # All options: trans, sc, bulk
