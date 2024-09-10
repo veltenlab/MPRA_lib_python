@@ -2,7 +2,7 @@
 
 # Sequencing Analysis Pipeline
 
-This is an internal pipeline for the sequencing analysis of the data obtained from MPRA experiments (transMPRA/scMPRA/bulkMPRA) based on the following workflow:
+This is an internal pipeline for the sequencing analysis of the data obtained from 3 different types of MPRA. It is aimed to build an association library from the sequencing data to match barcodes with aligned sequences. As shown in the table, the input data, so as the final asssociation is a bit different across the MPRA types:
 
 <p align="center">
   <img src="modes.jpg" alt="Description" width="400"/>
@@ -58,3 +58,5 @@ You can test the `snakefile` using the provided `config_test.yaml` and example d
    ```bash
    snakemake --configfile config_test.yaml --cores 1 --use-conda
    ```
+
+   *** For now, the Rscript is not a part of the snakemake pipeline but it could be integrated, there is already prewritten rule for it in the snakefile
