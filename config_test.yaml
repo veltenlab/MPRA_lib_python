@@ -1,35 +1,31 @@
-# """
 # This is a test config file with 3 small examples for each output
 # In order to test a certain output, change the mode and uncomment the corresponding input_files (marked with mode name)
-# !!! Note that the functional element can be called both CRS (cis-regulatory sequence) and CRE (cir-regulatory element)
-# """
+# !!! Note that the functional element can be called both CRS (cis-regulatory sequence) and CRE (cir-regulatory element) 
 
 # Specify the MPRA dataset
 # All options: trans, sc, bulk
-mode: trans
+mode: sc
 
 # Enter path to the corresponded fastq files
 input_files:
-#trans
-  guide: "data/example_data/trans/guide.fastq.gz"
-  bc: "data/example_data/trans/bc.fastq.gz"
-  crs: "data/example_data/trans/crs.fastq.gz"
-  crs_paired: "path/to/paired_crs.fastq.gz"
 
-# #sc
-  # guide: "data/example_data/sc/guide.fastq.gz"
-  # bc: "data/example_data/sc/bc.fastq.gz"
-  # crs: "data/example_data/sc/crs.fastq.gz"
-  # crs_paired: "data/example_data/sc/crs_paired.fastq.gz"
+# #trans
+#   guide: "data/example_data/trans/guide.fastq.gz"
+#   bc: "data/example_data/trans/bc.fastq.gz"
+#   crs: "data/example_data/trans/crs.fastq.gz"
+#   crs_paired: "path/to/paired_crs.fastq.gz"
+
+#sc
+  guide: "data/example_data/sc/guide.fastq.gz"
+  bc: "data/example_data/sc/bc.fastq.gz"
+  crs: "data/example_data/sc/crs.fastq.gz"
+  crs_paired: "data/example_data/sc/crs_paired.fastq.gz"
 
 # # bulk
-  # guide: "path/to/guide.fastq.gz"
-  # bc: "data/example_data/bulk/bc.fastq.gz"
-  # crs: "data/example_data/bulk/crs.fastq.gz"
-  # crs_paired: "data/example_data/bulk/crs_paired.fastq.gz" # Only specify if the the mode is bulk and there are 2 fastq files for crs
-
-#   crs: /home/vdragan/cluster/sequencing_data/Chelsea_Szu-Tu/2024-06-04_AHCHHFAFX7/VELTENLAR_98/LIBVAS_lib_08533AAF_ACGTAGACCA_R2_001.fastq.gz
-#   crs_paired: /home/vdragan/cluster/sequencing_data/Chelsea_Szu-Tu/2024-06-04_AHCHHFAFX7/VELTENLAR_98/LIBVAS_lib_08533AAF_ACGTAGACCA_R3_001.fastq.gz
+#   guide: "path/to/guide.fastq.gz"
+#   bc: "data/example_data/bulk/bc.fastq.gz"
+#   crs: "data/example_data/bulk/crs.fastq.gz"
+#   crs_paired: "data/example_data/bulk/crs_rev.fastq.gz" # Only specify if the the mode is bulk and there are 2 fastq files for crs
 
 # Enter path to the reference files (either .csv or .fa)
 references:
@@ -42,3 +38,7 @@ out_dir: "results/"
 # Specify n of threads for the bwa alignment
 threads_bwa: 1
 
+# Additionaly, parameters for barcode correction step can be adjusted
+bc_corr_threshold: 1 # Threshold for barcode correction. Default: bc with max 1 mismatch will be merged. Can be adjusted here to other integers.
+bc_corr_filtering: True # Specifies whether the filtering step (filter out all bc with read_counts = 1 if there are more than 1000 bcs per crs) should be applied
+  

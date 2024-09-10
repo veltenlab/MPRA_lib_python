@@ -1,6 +1,8 @@
 """
+This is a script that takes sequencing and aligned files and aligns matches them together, creating an association library
+This library will be later used to identify which barcode corresponds to which tested CRS
 """
-
+import argparse
 import gzip
 import pysam
 import sys
@@ -9,13 +11,32 @@ from collections import defaultdict
 
 from utils import *
 
-# Check if at least one argument is provided
-if len(sys.argv) != 6:
-    print("Usage: association.py <mode> <bc_file> <guide_file> <crs_file> <outfile>", file=sys.stderr)
-    sys.exit(1)
+# Argument parser setup
+parser = argparse.ArgumentParser()
 
-# Save the arguments given from argv
-mode, crs_file_path, bc_file_path, guide_file_path, outfile = sys.argv[1:]
+# Define the arguments
+parser.add_argument("--mode", required=True)
+parser.add_argument("--bc_file", required=True)
+parser.add_argument("--guide_file", default=None)  # Optional argument
+parser.add_argument("--crs_file", required=True)
+parser.add_argument("--outfile", required=True)
+parser.add_argument("--bc_corr_threshold", default=None)  # Optional argument
+parser.add_argument("--bc_corr_filter", default=None)  # Optional argument
+
+# Parse arguments
+args = parser.parse_args()
+
+# In case of bulk mode, assign guide file path to None before using parsed varibales
+guide_file_path = None
+
+# Reassign arguments to the simpler variables
+mode = args.mode
+bc_file_path = args.bc_file
+guide_file_path = args.guide_file
+crs_file_path = args.crs_file
+outfile = args.outfile
+bc_corr_threshold = args.bc_corr_threshold
+bc_corr_filter = args.bc_corr_filter
 
 BC_CRS_raw = defaultdict(dict)
 counter = 0
@@ -23,30 +44,44 @@ maps_score = {}
 maps_count_fwd = {}
 maps_count_rev = {}
 
+
+#################################################
+####      Mapping barcodes and alignments    ####
+#################################################
 # Create the first BC_CRS_raw dictionary by reading bc and crs files, then guide file mode-specific
+# BC_CRS_raw = {
+    
+#     'barcode1': {'CRS1': [[score1, score2, ...], read_counts],
+#                 'CRS10': [[score1, score2, ...], read_counts]},
+                
+#     'barcode2': {'CRS2': [[score1, score2, ...], read_counts]},
+
+#     ...}
+
 with gzip.open(bc_file_path, 'rt') as bc_file, \
         pysam.AlignmentFile(crs_file_path, 'rb') as crs_file:
         if mode == "trans":
             guide_file = pysam.AlignmentFile(guide_file_path, 'rb')
-        elif mode == "sc":
+        else:
             guide_file = gzip.open(guide_file_path, 'rt')               
         try:
             # Generate the bc sequence
-            readname_fastq, bcline_fastq = get_next_barcode(guide_file, bc_file, mode)
+            readname_fastq, bcline_fastq = get_next_barcode(bc_file, guide_file, mode)
 
             if readname_fastq is None:
                 print("No barcodes found", file=sys.stderr)
                 sys.exit(1)
 
             for bamline in crs_file:
-
                 bits = format(bamline.flag, '05b')[::-1]  # Parse flags
                 bam_ref = crs_file.get_reference_name(bamline.reference_id)
 
                 # If there is more than one alignment for a sequence, check for orientation and amount of reads
                 if bamline.query_name != readname_fastq:
+                    # For bulk mode, accept only reads with 1 fow and 1 rev aligments
                     if mode == "bulk":
                         considered = [k for k in maps_score if maps_count_fwd.get(k, 0) == 1 and maps_count_rev.get(k, 0) == 1]
+                    # For other modes, accept reads with only 1 fow alignment and 0 rev
                     else:
                         considered = [k for k in maps_score if maps_count_fwd.get(k, 0) == 0 and maps_count_rev.get(k, 0) == 1]
                 
@@ -72,7 +107,7 @@ with gzip.open(bc_file_path, 'rt') as bc_file, \
                     maps_count_fwd = {}
                     maps_count_rev = {}
 
-                    readname_fastq, bcline_fastq = get_next_barcode(guide_file, bc_file, mode)
+                    readname_fastq, bcline_fastq = get_next_barcode(bc_file, guide_file, mode)
 
                     if readname_fastq is None:
                         print("No barcodes found", file=sys.stderr)
@@ -95,11 +130,22 @@ with gzip.open(bc_file_path, 'rt') as bc_file, \
                     maps_count_rev[bam_ref] = int(bits[4])
                     maps_count_fwd[bam_ref] = 1 - int(bits[4])
         finally:
-        # Ensure the guide_file is properly closed
-            guide_file.close()
+            if guide_file is not None:
+                guide_file.close()
 
+#############################################
+####       Clean up multiple assignments#####
+#############################################
+#There are some barcodes that get assigned to multiple CRS. actually this happens a lot. In these cases count how often this happens but assign the barcode to the
+# CRS that is supported with more reads, buty report the number of reads supporting a different assignment. This does not remove anything 
+# BC_CRS = {
+    
+#     'barcode1': ['CRS1', [score1, score2, ...], read_counts, other_CRSs_read_counts],
 
-# Clean up multiple alignments and only keep one crs per barcode as a main alignment (highest reads count)
+#     'barcode2': ['CRS2', [score3, score4, ...], read_counts, other_CRSs_read_counts],
+
+#     ...}
+
 total_reads = 0
 BC_CRS = defaultdict(list)
 for barcode, crs in BC_CRS_raw.items():
@@ -112,14 +158,6 @@ for barcode, crs in BC_CRS_raw.items():
         BC_CRS[barcode][3] += crs[c][1]
 print(f"Cleaned dictionary BC_CRS with the length {len(BC_CRS)} was created")
 
-###
-
-# # Print head of the cleaned dic to make sure it was created correctly
-# for key, value in islice(CRS_BC.items(), 5):
-#     print(f"{key}: {value}")
-
-###
-
 # Revert dictionary to the crs-bc association from bc-crs
 CRS_BC = defaultdict(list)
 
@@ -130,21 +168,22 @@ print("Completed creating CRS_BC")
 print("CRS_BC length: :", len(CRS_BC))
 
 
-# Correct barcodes
-BC_CRS_fixed, total_mapped_reads = correct_barcodes(BC_CRS, CRS_BC)
+#############################################
+####        Run barcode correction      #####
+#############################################
+# If two barcodes map to the same CRS and are similar, add the less abundant barcode to the more abundant one
+# Rank barcodes per CRS by the read counts and start with comparison of barcode with the lowest to one with the highest read counts
+
+BC_CRS_fixed, total_mapped_reads = correct_barcodes(BC_CRS, CRS_BC, int(bc_corr_threshold), bc_corr_filter)
 
 print(f"Total mapped reads: {total_mapped_reads}")
 print(f"Length of BC_CRS: {len(BC_CRS)}")
 print(f"Length of BC_CRS_fixed: {len(BC_CRS_fixed)}")
 
-###
 
-# # Print head of the created BC_CRS_fixed after barcode correction
-# for key, value in islice(BC_CRS_fixed.items(), 5):
-#     print(f"{key}: {value}")
-
-###
-
+#############################################
+####         Output results to csv       ####
+#############################################
 # Save the information about barcodes and corresponding crs sequences in a csv.gz file
 with gzip.open(outfile, 'wt') as out:
     # Write the header

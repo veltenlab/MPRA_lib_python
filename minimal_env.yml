@@ -1,0 +1,18 @@
+name: minimal-env
+channels:
+  - defaults
+  - conda-forge
+  - bioconda
+dependencies:
+  - python=3.10
+  - snakemake
+  - bwa
+  - pysam
+  - levenshtein
+  # # In case you want to run the Rscript from the same conda env, uncomment the following:
+  # - r-base
+  # - r-ggplot2
+  # - r-dplyr
+  # - r-knitr
+  # - r-tidyr
+  # - r-rmarkdown 

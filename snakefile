@@ -12,7 +12,7 @@ timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 rule all:
     input:
         f"results/{mode}/alignment_crs.bam" if config["mode"] != "trans" else [f"results/{mode}/alignment_crs.bam", f"results/{mode}/alignment_guide.bam"],
-        f"results/{mode}/counts_matrix_{timestamp}.csv.gz"
+        f"results/{mode}/counts_matrix_{timestamp}.csv.gz",
         # f"results/{mode}/report_{timestamp}.html"
 
 # Rule to check if reference exists and create .fa if necessary
@@ -90,19 +90,44 @@ rule align_bulk:
         bwa index {input.reference}
         bwa mem -t {params.threads} {input.reference} {input.FWD} {input.REV} | samtools view -b > {output.bam}
         """
-         
+
+def get_guide_flag(wildcards, input):
+    if input.get("guide"):
+        return f"--guide_file {input.guide}"
+    return ""
+
 # Rule to process files with Python script and create an association library
 rule process_files:
     input:
         crs = f"results/{mode}/alignment_crs.bam",
         bc = config["input_files"]["bc"],
-        guide = f"results/{mode}/alignment_guide.bam" if mode == "trans" else (config["input_files"]["guide"] if mode == "sc" else None),
+        guide = f"results/{mode}/alignment_guide.bam" if mode == "trans" else (config["input_files"]["guide"] if mode == "sc" else [])
+        # guide = f"results/{mode}/alignment_guide.bam" if mode == "trans" else config["input_files"]["guide"]
     output:
         csv = f"results/{mode}/counts_matrix_{timestamp}.csv.gz"
+    params:
+        threshold = config["bc_corr_threshold"],
+        filter_bc = config["bc_corr_filtering"],
+        # guide_flag = f"--guide_file {input.guide}" if input.guide else ""
+        guide_flag = get_guide_flag
     shell:
         """
-        echo "Creating association library"
-        python scripts/association.py {mode} {input.crs} {input.bc} {input.guide} {output.csv}
+        # If mode = bulk, create a temporary empty fastq.gz file
+        if [ "{mode}" == "bulk" ]; then
+            temp_guide=$(mktemp --suffix=.fastq.gz)
+            gzip -c /dev/null > "$temp_guide"
+        else
+            temp_guide={input.guide}
+        fi
+
+        python scripts/association.py --mode {mode} \
+                          --crs_file {input.crs} \
+                          --bc_file {input.bc} \
+                          --guide_file "$temp_guide" \
+                          --outfile {output.csv} \
+                          --bc_corr_threshold {params.threshold} \
+                          --bc_corr_filter {params.filter_bc}
+
         """
 
 # # Rule to generate the HTML report using R Markdown
@@ -115,29 +140,4 @@ rule process_files:
 #     shell:
 #         """
 #         Rscript -e "rmarkdown::render(input = '{input.rmd}', output_file = '{output.html}', params = list(data_file = '{input.csv}'))"
-#         """
-
-# # Rule to generate the HTML report using R Markdown
-# rule generate_report:
-#     input:
-#         rmd = "scripts/generate_report.Rmd"
-#         csv = f"results/{mode}/counts_matrix_{timestamp}.csv.gz"
-#     output:
-#         html = f"results/{mode}/report_{timestamp}.csv.gz"
-#     shell:
-#         """
-#         {load_modules()}
-#         Rscript -e "rmarkdown::render('scripts/generate_report.Rmd', params=list(input='{input.csv_gz}'), output_file='{output.html}')"
-
-#         Rscript -e "rmarkdown::render(input = '{input.rmd}', output_file = '{output.html}', params = list(data_file = '{input.csv}'))"
-#         ""
-
-# rule render_rmarkdown:
-#     input:
-#         "report.Rmd"
-#     output:
-#         "report.html"
-#     script:
-#         """
-#         Rscript -e "rmarkdown::render('{input}', output_file='{output}')"
 #         """

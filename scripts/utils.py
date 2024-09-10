@@ -4,7 +4,6 @@ import pysam
 import re
 import Levenshtein
 
-
 def count_reads(file_path):
     """Counts the number of reads in a BAM or FASTQ file, whether gzipped or not
     
@@ -36,51 +35,13 @@ def count_reads(file_path):
                         read_count += 1
         return read_count
 
-# Old cunt_reads function
-
-# def count_reads(bam_filename, bc_filename, guide_filename):
-#     bam_file_read = pysam.AlignmentFile(bam_filename, 'rb')
-#     alignment_count = sum(1 for _ in bam_file_read)
-#     print("Bam alignments count: ", alignment_count)
-    
-#     with gzip.open(bc_filename, 'rt') if bc_filename.endswith('.gz') else open(bc_filename, 'r') as f:
-#         record_count = 0
-#         for line in f:
-#             if line.startswith("@"):
-#                 record_count += 1
-#         print("BC fastq reads count: ", record_count)
-
-#     with gzip.open(guide_filename, 'rt') if guide_filename.endswith('.gz') else open(guide_filename, 'r') as f:
-#         record_count = 0
-#         for line in f:
-#             if line.startswith("@"):
-#                 record_count += 1
-#         print("Guide fastq reads count: ", record_count)
-
-# Defining a function to convert cigar string to score
-
 def cigar_to_score(cigar_tuples):
     """Extract numbers from tuples where the first element is 0 = Match"""
     match_numbers = [num for op, num in cigar_tuples if op == 0]
     total_match_numbers = sum(match_numbers)
     return total_match_numbers
 
-def filter_bam_file(input_bam_path, output_bam_path):
-    """Function to filter the BAM file to keep only the best alignment per read."""
-    with pysam.AlignmentFile(input_bam_path, "rb") as input_bam, pysam.AlignmentFile(output_bam_path, "wb", template=input_bam) as output_bam:
-        best_alignments = {}
-        
-        for alignment in input_bam:
-            readname = alignment.query_name
-            if readname not in best_alignments:
-                best_alignments[alignment.query_name] = alignment
-            elif cigar_to_score(alignment.cigar) > cigar_to_score(best_alignments[readname].cigar):
-                best_alignments[alignment.query_name] = alignment
-
-        for alignment in best_alignments.values():
-            output_bam.write(alignment)
-
-def get_next_barcode(guide_file, bc_file = None, mode = "sc"):
+def get_next_barcode(bc_file, guide_file = None, mode = "sc"):
     """Function to generate next barcode
 
     Args:
@@ -118,7 +79,7 @@ def get_next_barcode(guide_file, bc_file = None, mode = "sc"):
         # Barcode and guide sequences are separated by the vertical line to be able to separate them later
         out = [readname, f"{barcode}|{guide}"]
     
-    else:
+    elif mode == "sc":
         for i in range(1, 5):
             bcline = bc_file.readline().rstrip('\n')
             guideline = guide_file.readline().rstrip('\n')
@@ -132,67 +93,19 @@ def get_next_barcode(guide_file, bc_file = None, mode = "sc"):
             elif i == 2:
                 barcode = bcline
                 guide = guideline
-        out = [readname, barcode + guide]
-    # print("new_fastq_barcode: ", out)
+        out = [readname, f"{barcode}|{guide}"]
+    else:
+        for i in range(1, 5):
+            bcline = bc_file.readline().rstrip('\n')
+            # Check for EOF in either file
+            if not bcline:
+                return None  # Indicate that EOF was reached or one file is shorter than the other
+            if i == 1:
+                readname = re.sub(r'^@(\S+)\s.+', r'\1', bcline)
+            elif i == 2:
+                barcode = bcline
+                out = [readname, f"{barcode}|"] 
     return out
-
-def concat_sequences(fastq_file_path, second_file_path, is_bam=False):
-    """Concatenate sequences from a FastQ file and a second file which can be either FastQ or BAM.
-
-    Args:
-        fastq_file_path (str): Path to the FastQ file.
-        second_file_path (str): Path to the second file (either FastQ or BAM).
-        is_bam (bool): Indicates whether the second file is a BAM file.
-
-    Returns:
-        list of tuple: List of tuples where each tuple contains the read name and the concatenated sequence.
-    """
-    results = []
-
-    with open(fastq_file_path, 'r') as fastq_file:
-        if is_bam:
-            second_file = pysam.AlignmentFile(second_file_path, "rb")
-        else:
-            second_file = open(second_file_path, 'r')
-
-        try:
-            while True:
-                # Read the next sequence block from the FastQ file
-                fastq_file.readline().strip()
-                fastq_seq = fastq_file.readline().strip()
-                fastq_file.readline()  # skip '+' line
-                fastq_file.readline()  # skip quality score line
-
-                if not fastq_seq:
-                    break  # End of file or empty line
-
-                if is_bam:
-                    try:
-                        alignment = next(second_file)
-                        second_seq = alignment.query_sequence
-                    except StopIteration:
-                        break  # No more reads in BAM
-                else:
-                    second_file.readline().strip()
-                    second_seq = second_file.readline().strip()
-                    second_file.readline()  # skip '+' line
-                    second_file.readline()  # skip quality score line
-
-                    if not second_seq:
-                        break  # End of file or empty line
-
-                # Concatenate the sequences
-                results.append(fastq_seq + second_seq)
-
-        finally:
-            if is_bam:
-                second_file.close()
-            else:
-                second_file.close()
-
-    return results
-
-
 
 def format_number(value):
     try:
@@ -204,99 +117,20 @@ def format_number(value):
     except ValueError:
         # Return the original value if it's not a number
         return value
-    
 
-
-
-    
-################################################################
-### Optional functions:
-def hamming_distance(string1, string2):
-    if len(string1) != 30 or len(string2) != 30:
-        return 100  # Return a high number for unequal lengths
-    
-    distance = 0
-    for ch1, ch2 in zip(string1, string2):
-        if ch1 != ch2:
-            distance += 1
-            if distance > 3:
-                break  # Stop calculation once distance exceeds 3
-    return distance
-
-
-def concat_sequences(fastq_file_path, second_file_path, is_bam=False):
-    """Concatenate sequences from a FastQ file and a second file which can be either FastQ or BAM.
+def correct_barcodes(BC_CRS, CRS_BC, threshold = 1, filter_ones = True):
+    """Function to merge low-presented barcodes with the similar ones, which are better presented
 
     Args:
-        fastq_file_path (str): Path to the FastQ file.
-        second_file_path (str): Path to the second file (either FastQ or BAM).
-        is_bam (bool): Indicates whether the second file is a BAM file.
+        BC_CRS (dic): dictionary of barcodes and corresponded CRSs with read counts
+        CRS_BC (dic): dictionary of CRSs with corresponded matched barcodes
+        threshold (int): the threshold value for the max accepted Levenstein distance for merge, default 1
+        filter_ones (bool): specifies, whether the filtering step for deleting all one-reads for CRSs with more than 1000 barcodes should be applied
 
     Returns:
-        list of tuple: List of tuples where each tuple contains the read name and the concatenated sequence.
+        BC_CRS_fixed (dic): shorter barcodes dictionary after merging step
+        total_mapped_reads (int): summ statistics about total mapped reads
     """
-    results = []
-
-    line_count = 0
-
-    with gzip.open(fastq_file_path, 'rt') as fastq_file:
-        if is_bam:
-            second_file = pysam.AlignmentFile(second_file_path, "rb")
-        else:
-            second_file = gzip.open(second_file_path, 'rt')
-
-        try:
-            while True:
-                # Read the next sequence block from the FastQ file
-                fastq_file.readline()
-                fastq_seq = fastq_file.readline().strip()
-                fastq_file.readline()  # skip '+' line
-                fastq_file.readline()  # skip quality score line
-
-                # line_count += 1
-            
-                # # Break out of the loop if line count reaches 110
-                # if line_count >= 10:
-                #     break
-
-                if not fastq_seq:
-                    break  # End of file or empty line
-
-
-                if is_bam:
-                    try:
-                        alignment = next(second_file)
-                        second_seq = second_file.get_reference_name(alignment.reference_id)
-                    except StopIteration:
-                        break  # No more reads in BAM
-                else:
-                    second_file.readline()
-                    second_seq = second_file.readline().strip()
-                    second_file.readline()  # skip '+' line
-                    second_file.readline()  # skip quality score line
-
-                    if not second_seq:
-                        break  # End of file or empty line
-
-                # Concatenate the sequences
-                results.append(safe_concatenate(fastq_seq,second_seq))
-
-        finally:
-            if is_bam:
-                second_file.close()
-            else:
-                second_file.close()
-
-    return results
-
-def safe_concatenate(str1, str2):
-    # Convert None to an empty string for both inputs before concatenating
-    str1 = str1 if str1 is not None else ""
-    str2 = str2 if str2 is not None else ""
-    return str1 + str2
-
-
-def correct_barcodes(BC_CRS, CRS_BC):
     BC_CRS_fixed = {}
     nstep = 0
     ncrs = len(CRS_BC)
@@ -310,12 +144,12 @@ def correct_barcodes(BC_CRS, CRS_BC):
         # Calculate total reads
         totreads = sum(BC_CRS[bc][2] for bc in BARCODES)
         total_mapped_reads += totreads
-        #print(f"Correcting barcodes for CRS {crs} with {len(BARCODES)} barcodes and {totreads} reads, {nstep} of {ncrs}")
 
         # Filter (optional)
-        if len(BARCODES) > 1000:
-            removed_oneread += len([bc for bc in BARCODES if BC_CRS[bc][2] == 1])
-            BARCODES = [bc for bc in BARCODES if BC_CRS[bc][2] > 1]
+        if filter_ones == True:
+            if len(BARCODES) > 1000:
+                removed_oneread += len([bc for bc in BARCODES if BC_CRS[bc][2] == 1])
+                BARCODES = [bc for bc in BARCODES if BC_CRS[bc][2] > 1]
 
         # Sort BARCODES by number of reads
         BARCODES.sort(key=lambda bc: BC_CRS[bc][2])
@@ -325,7 +159,7 @@ def correct_barcodes(BC_CRS, CRS_BC):
 
             matched = False
             for target_bc in reversed(BARCODES):  # Compare with the barcode with the most reads first
-                if Levenshtein.distance(this_bc, target_bc, weights=(10,10,1)) <= 1:  # Adjust the threshold as needed
+                if Levenshtein.distance(this_bc, target_bc, weights=(10,10,1)) <= threshold:  # Adjust the threshold as needed
                     if target_bc in BC_CRS_fixed:
                         BC_CRS_fixed[target_bc][2] += BC_CRS[this_bc][2]  # Add read counts
                         BC_CRS_fixed[target_bc][3] += BC_CRS[this_bc][3]  # Add deviant read counts
