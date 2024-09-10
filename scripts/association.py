@@ -2,7 +2,7 @@
 This is a script that takes sequencing and aligned files and aligns matches them together, creating an association library
 This library will be later used to identify which barcode corresponds to which tested CRS
 """
-
+import argparse
 import gzip
 import pysam
 import sys
@@ -11,15 +11,32 @@ from collections import defaultdict
 
 from utils import *
 
-# Check if at least one argument is provided
-if len(sys.argv) != 8:
-    print("Usage: association.py <mode> <bc_file> <guide_file> <crs_file> <outfile> <bc_corr_threshold> <bc_corr_filter>", file=sys.stderr)
-    sys.exit(1)
+# Argument parser setup
+parser = argparse.ArgumentParser()
 
-# Save the arguments given from argv
-mode, crs_file_path, bc_file_path, guide_file_path, outfile, bc_corr_threshold, bc_corr_filter = sys.argv[1:]
-print(bc_corr_threshold, type(bc_corr_threshold))
-print(bc_corr_filter, type(bc_corr_filter))
+# Define the arguments
+parser.add_argument("--mode", required=True)
+parser.add_argument("--bc_file", required=True)
+parser.add_argument("--guide_file", default=None)  # Optional argument
+parser.add_argument("--crs_file", required=True)
+parser.add_argument("--outfile", required=True)
+parser.add_argument("--bc_corr_threshold", default=None)  # Optional argument
+parser.add_argument("--bc_corr_filter", default=None)  # Optional argument
+
+# Parse arguments
+args = parser.parse_args()
+
+# In case of bulk mode, assign guide file path to None before using parsed varibales
+guide_file_path = None
+
+# Reassign arguments to the simpler variables
+mode = args.mode
+bc_file_path = args.bc_file
+guide_file_path = args.guide_file
+crs_file_path = args.crs_file
+outfile = args.outfile
+bc_corr_threshold = args.bc_corr_threshold
+bc_corr_filter = args.bc_corr_filter
 
 BC_CRS_raw = defaultdict(dict)
 counter = 0
@@ -45,18 +62,17 @@ with gzip.open(bc_file_path, 'rt') as bc_file, \
         pysam.AlignmentFile(crs_file_path, 'rb') as crs_file:
         if mode == "trans":
             guide_file = pysam.AlignmentFile(guide_file_path, 'rb')
-        elif mode == "sc":
+        else:
             guide_file = gzip.open(guide_file_path, 'rt')               
         try:
             # Generate the bc sequence
-            readname_fastq, bcline_fastq = get_next_barcode(guide_file, bc_file, mode)
+            readname_fastq, bcline_fastq = get_next_barcode(bc_file, guide_file, mode)
 
             if readname_fastq is None:
                 print("No barcodes found", file=sys.stderr)
                 sys.exit(1)
 
             for bamline in crs_file:
-
                 bits = format(bamline.flag, '05b')[::-1]  # Parse flags
                 bam_ref = crs_file.get_reference_name(bamline.reference_id)
 
@@ -91,7 +107,7 @@ with gzip.open(bc_file_path, 'rt') as bc_file, \
                     maps_count_fwd = {}
                     maps_count_rev = {}
 
-                    readname_fastq, bcline_fastq = get_next_barcode(guide_file, bc_file, mode)
+                    readname_fastq, bcline_fastq = get_next_barcode(bc_file, guide_file, mode)
 
                     if readname_fastq is None:
                         print("No barcodes found", file=sys.stderr)
@@ -114,8 +130,8 @@ with gzip.open(bc_file_path, 'rt') as bc_file, \
                     maps_count_rev[bam_ref] = int(bits[4])
                     maps_count_fwd[bam_ref] = 1 - int(bits[4])
         finally:
-        # Ensure the guide_file is properly closed
-            guide_file.close()
+            if guide_file is not None:
+                guide_file.close()
 
 #############################################
 ####       Clean up multiple assignments#####

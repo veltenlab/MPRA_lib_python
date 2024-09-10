@@ -4,27 +4,28 @@
 
 # Specify the MPRA dataset
 # All options: trans, sc, bulk
-mode: trans
+mode: sc
 
 # Enter path to the corresponded fastq files
 input_files:
-#trans
-  guide: "data/example_data/trans/guide.fastq.gz"
-  bc: "data/example_data/trans/bc.fastq.gz"
-  crs: "data/example_data/trans/crs.fastq.gz"
-  crs_paired: "path/to/paired_crs.fastq.gz"
 
-# #sc
-  # guide: "data/example_data/sc/guide.fastq.gz"
-  # bc: "data/example_data/sc/bc.fastq.gz"
-  # crs: "data/example_data/sc/crs.fastq.gz"
-  # crs_paired: "data/example_data/sc/crs_paired.fastq.gz"
+# #trans
+#   guide: "data/example_data/trans/guide.fastq.gz"
+#   bc: "data/example_data/trans/bc.fastq.gz"
+#   crs: "data/example_data/trans/crs.fastq.gz"
+#   crs_paired: "path/to/paired_crs.fastq.gz"
+
+#sc
+  guide: "data/example_data/sc/guide.fastq.gz"
+  bc: "data/example_data/sc/bc.fastq.gz"
+  crs: "data/example_data/sc/crs.fastq.gz"
+  crs_paired: "data/example_data/sc/crs_paired.fastq.gz"
 
 # # bulk
-  # guide: "path/to/guide.fastq.gz"
-  # bc: "data/example_data/bulk/bc.fastq.gz"
-  # crs: "data/example_data/bulk/crs.fastq.gz"
-  # crs_paired: "data/example_data/bulk/crs_paired.fastq.gz" # Only specify if the the mode is bulk and there are 2 fastq files for crs
+#   guide: "path/to/guide.fastq.gz"
+#   bc: "data/example_data/bulk/bc.fastq.gz"
+#   crs: "data/example_data/bulk/crs.fastq.gz"
+#   crs_paired: "data/example_data/bulk/crs_rev.fastq.gz" # Only specify if the the mode is bulk and there are 2 fastq files for crs
 
 # Enter path to the reference files (either .csv or .fa)
 references:

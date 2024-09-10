@@ -41,7 +41,7 @@ def cigar_to_score(cigar_tuples):
     total_match_numbers = sum(match_numbers)
     return total_match_numbers
 
-def get_next_barcode(guide_file, bc_file = None, mode = "sc"):
+def get_next_barcode(bc_file, guide_file = None, mode = "sc"):
     """Function to generate next barcode
 
     Args:
@@ -79,7 +79,7 @@ def get_next_barcode(guide_file, bc_file = None, mode = "sc"):
         # Barcode and guide sequences are separated by the vertical line to be able to separate them later
         out = [readname, f"{barcode}|{guide}"]
     
-    else:
+    elif mode == "sc":
         for i in range(1, 5):
             bcline = bc_file.readline().rstrip('\n')
             guideline = guide_file.readline().rstrip('\n')
@@ -93,8 +93,18 @@ def get_next_barcode(guide_file, bc_file = None, mode = "sc"):
             elif i == 2:
                 barcode = bcline
                 guide = guideline
-        out = [readname, barcode + guide]
-    # print("new_fastq_barcode: ", out)
+        out = [readname, f"{barcode}|{guide}"]
+    else:
+        for i in range(1, 5):
+            bcline = bc_file.readline().rstrip('\n')
+            # Check for EOF in either file
+            if not bcline:
+                return None  # Indicate that EOF was reached or one file is shorter than the other
+            if i == 1:
+                readname = re.sub(r'^@(\S+)\s.+', r'\1', bcline)
+            elif i == 2:
+                barcode = bcline
+                out = [readname, f"{barcode}|"] 
     return out
 
 def format_number(value):
@@ -134,7 +144,6 @@ def correct_barcodes(BC_CRS, CRS_BC, threshold = 1, filter_ones = True):
         # Calculate total reads
         totreads = sum(BC_CRS[bc][2] for bc in BARCODES)
         total_mapped_reads += totreads
-        #print(f"Correcting barcodes for CRS {crs} with {len(BARCODES)} barcodes and {totreads} reads, {nstep} of {ncrs}")
 
         # Filter (optional)
         if filter_ones == True:
