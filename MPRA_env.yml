@@ -9,7 +9,8 @@ dependencies:
   - bwa
   - pysam
   - levenshtein
-  # # In case you want to run the Rscript from the same conda env, uncomment the following:
+  
+  # # In case you want to run the Rscript from the same conda env, uncomment the following but be ready for the long installation time
   # - r-base
   # - r-ggplot2
   # - r-dplyr
