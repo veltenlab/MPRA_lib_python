@@ -17,8 +17,8 @@ output:
 
   editor_options:
   chunk_output_type: console
-params:
-  data_file: NULL
+# params:
+#   data_file: NULL
 ---
 
 ```{r setup, include=FALSE}
@@ -27,115 +27,114 @@ knitr::opts_chunk$set(warning = FALSE, message = FALSE)
 knitr::opts_knit$set(root.dir = "..")
 
 require(ggplot2)
-require(LSD)
-require(plyr)
-require(gridExtra)
-require(reshape2)
-library(patchwork)
 library(dplyr)
-library(tidyverse)
 library(knitr)
-library(kableExtra)
+library(tidyr)
 
 # Read the csv file and add 2 columns separating 2 gRNA from the GFP-barcode
+# all <- read.csv(gzfile("C:/Users/Lera/Downloads/counts_matrix_20240905_134258.csv.gz"), sep = "\t")
 all <- read.csv(gzfile(params$data_file), sep = "\t")
 all$exp <- "gib2"
 
+# Added a step to separate guide "barcode" from the GFP barcode, only works if the barcode line has | in the middle of it.
 all <- all %>%
   separate(BARCODE, into = c("BARCODE", "GUIDE"), sep = "\\|")
 
 # Filter out lines that were not mapped with bwa to GRE or gRNA
-mapped <- all %>% 
-  filter(REF != "None", GUIDE != "") %>%
-  mutate(construct = paste0(REF, GUIDE))
-
+mapped <- all %>%
+  filter(CRS != "None", GUIDE != "") %>%
+  mutate(construct = paste0(CRS, GUIDE))
 ```
-
 
 # Mapping Stats
 
-```{r mapping stats, include=FALSE}
-
+```{r mapping stats}
 tot_reads <- sum(all$READS)
 
 perc_mapped <- sum(mapped$READS)/sum(all$READS)
 
-library(knitr)
-data <- data.frame(
-  Library = "Library",
-  "Total No of Reads "= tot_reads, 
+
+mapping_stat <- data.frame(
+  Library = "Gib2",
+  "Total No of Reads" = tot_reads, 
   "Mapping Rate total" = perc_mapped
 )
 
-kable(data, format = "markdown", align = 'c')
-
+knitr::kable(mapping_stat, align = 'c')
 ```
 
 # Barcode representation
-Most importantly, we want to make sure that unique constructs are represented evenly in the library. We would expect equal number of reads for each construct after sequencing. To look into this, we first compute the number of reads/barcodes per construct. Then we rank each construct, according to its number of reads (Rank 1: The construct with the lowest number of reads).
+Most importantly, we want to make sure that unique constructs are represented evenly in the library. We would expect equal number of reads/barcodes for each construct after sequencing. To look into this, we first compute the number of reads/barcodes per construct. Then we rank each construct, according to its number of reads (Rank 1: The construct with the lowest number of reads).
 
-## How many reads represent one gRNA-barcode combination? 
+## How many READ COUNTS represent each construct? 
 
-Each dot represents a unique construct ranked according to the number of reads/barcodes by which it is represented. 
+Each dot represents a unique construct ranked according to the number of reads by which it is represented. 
 
 ```{r number of reads representing constructs, include = TRUE}
-counts_per_construct <-filtered %>%
+counts_per_construct <-mapped %>%
   group_by(construct) %>%
   summarise(reads_count = sum(READS)) %>%
   mutate(rank = rank(reads_count)) %>%
   arrange(rank)
 
-# Calculate quantiles for READS
-quantiles <- quantile(counts_per_construct$reads_count, probs = c(0.05, 0.95))
+quantiles_reads <- quantile(counts_per_construct$reads_count, probs = c(0.05, 0.95))
 
-plot_counts_per_construct <- ggplot(counts_per_construct, aes(x = rank, y = reads_count)) +
+ggplot(counts_per_construct, aes(x = rank, y = reads_count)) +
   geom_point() +
   theme_classic() +
-  scale_y_log10(breaks = c(quantiles[1], quantiles[2]), 
-                     labels = c(quantiles[1], quantiles[2])) +
-  geom_hline(yintercept = quantiles[1], linetype = "dashed") +
-  geom_hline(yintercept = quantiles[2], linetype = "dashed") +  
-  annotate("text", x = 25000, y = 5, label = paste0("FC = ", round(quantiles[[2]]/quantiles[[1]], 2)), size = 4) +
-  annotate("text", x = 25000, y = 3, label = paste0("Mean = ", round(mean(counts_per_construct$reads_count), 2)), size = 4) +
+  scale_y_log10(breaks = c(quantiles_reads[1], quantiles_reads[2]), 
+                     labels = c(quantiles_reads[1], quantiles_reads[2])) +
+  geom_hline(yintercept = quantiles_reads[1], linetype = "dashed") +
+  geom_hline(yintercept = quantiles_reads[2], linetype = "dashed") + 
   labs(title = "Reads per unique construct",
-       x = "Uinque construct",
+       x = "Unique construct",
        y = "Read counts") +
   theme_minimal()
 
-barcodes_per_construct <-filtered %>%
+```
+
+The mean number of reads per unique construct is **`r round(mean(counts_per_construct$reads_count), 2)`**.
+
+Fold change between the 95% and 5% quantiles is **`r round(quantiles_reads[[2]]/quantiles_reads[[1]], 2)`**.
+
+## How many BARCODES represent each construct? 
+
+Each dot represents a unique construct ranked according to the number of barcodes by which it is represented. 
+
+```{r number of barcodes representing constructs, include = TRUE}
+barcodes_per_construct <-mapped %>%
   group_by(construct) %>%
   summarise(barcodes_count = n_distinct(BARCODE)) %>%
   mutate(rank = rank(barcodes_count)) %>%
   arrange(rank)
 
-# Calculate quantiles for barcodes
-quantiles <- quantile(barcodes_per_construct$barcodes_count, probs = c(0.05, 0.95))
+quantiles_bc <- quantile(barcodes_per_construct$barcodes_count, probs = c(0.05, 0.95))
 
-plot_barcodes_per_construct <- ggplot(barcodes_per_construct, aes(x = rank, y = barcodes_count)) +
+ggplot(barcodes_per_construct, aes(x = rank, y = barcodes_count)) +
   geom_point() +
   theme_classic() +
-  scale_y_log10(breaks = c(quantiles[1], quantiles[2]), 
-                     labels = c(quantiles[1], quantiles[2])) +
-  geom_hline(yintercept = quantiles[1], linetype = "dashed") +
-  geom_hline(yintercept = quantiles[2], linetype = "dashed") +  
-  annotate("text", x = 25000, y = 3, label = paste0("FC = ", round(quantiles[[2]]/quantiles[[1]], 2)), size = 4) +
+  scale_y_log10(breaks = c(quantiles_bc[1], quantiles_bc[2]), 
+                     labels = c(quantiles_bc[1], quantiles_bc[2])) +
+  geom_hline(yintercept = quantiles_bc[1], linetype = "dashed") +
+  geom_hline(yintercept = quantiles_bc[2], linetype = "dashed") +  
   labs(title = "Barcodes per unique construct",
-       x = "Uinque construct",
+       x = "Unique construct",
        y = "Barcode counts") +
   theme_minimal()
 
-plot_counts_per_construct + plot_barcodes_per_construct
-
 ```
+The mean number of barcodes per unique construct is **`r round(mean(counts_per_construct$reads_count), 2)`**.
 
-### Barcode counts per cponstruct and read counts per construct are correlated
+Fold change between the 95% and 5% quantiles is **`r round(quantiles_bc[[2]]/quantiles_bc[[1]], 2)`**.
+
+## Are barcode counts per construct and read counts per construct correlated?
 
 ```{r another, include = TRUE}
-counts_per_construct_not_ranked <-filtered %>%
+counts_per_construct_not_ranked <-mapped %>%
   group_by(construct) %>%
   summarise(reads_count = sum(READS))
 
-barcodes_per_construct_not_ranked <-filtered %>%
+barcodes_per_construct_not_ranked <-mapped %>%
   group_by(construct) %>%
   summarise(barcodes_count = n_distinct(BARCODE))
 
@@ -144,24 +143,21 @@ data <- data.frame(
   Barcodes = barcodes_per_construct_not_ranked$barcodes_count
 )
 
-# Plot
 ggplot(data, aes(x = Reads, y = Barcodes)) +
   geom_point() +
-  geom_smooth(method = "lm", se = TRUE) +
+  geom_smooth(formula = 'y ~ x', method = "lm", se = TRUE) +
   labs(title = "Correlation between barcodes and reads counts")
 ```
 
 ## Constructs per Barcode?
+
 We want to be able to identify which unique barcode corresponds to which construct, so non-unique barcodes will be eliminated. 
 
 ```{r barcodes duplicates, include = TRUE}
-check <- filtered %>%
+check <- mapped %>%
   group_by(BARCODE) %>%
   summarise(count = n_distinct(construct)) %>%
   arrange(desc(count))
 
-print(head(check))
 print(paste0(sum(check$count > 1), " = ", as.integer((sum(check$count > 1)/nrow(check))*100), "% out of ", nrow(check), " barcodes are combined with more than one construct"))
 ```
-
-

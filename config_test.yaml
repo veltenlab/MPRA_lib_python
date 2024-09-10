@@ -37,3 +37,7 @@ out_dir: "results/"
 # Specify n of threads for the bwa alignment
 threads_bwa: 1
 
+# Additionaly, parameters for barcode correction step can be adjusted
+bc_corr_threshold: 1 # Threshold for barcode correction. Default: bc with max 1 mismatch will be merged. Can be adjusted here to other integers.
+bc_corr_filtering: True # Specifies whether the filtering step (filter out all bc with read_counts = 1 if there are more than 1000 bcs per crs) should be applied
+  

@@ -12,12 +12,14 @@ from collections import defaultdict
 from utils import *
 
 # Check if at least one argument is provided
-if len(sys.argv) != 6:
-    print("Usage: association.py <mode> <bc_file> <guide_file> <crs_file> <outfile>", file=sys.stderr)
+if len(sys.argv) != 8:
+    print("Usage: association.py <mode> <bc_file> <guide_file> <crs_file> <outfile> <bc_corr_threshold> <bc_corr_filter>", file=sys.stderr)
     sys.exit(1)
 
 # Save the arguments given from argv
-mode, crs_file_path, bc_file_path, guide_file_path, outfile = sys.argv[1:]
+mode, crs_file_path, bc_file_path, guide_file_path, outfile, bc_corr_threshold, bc_corr_filter = sys.argv[1:]
+print(bc_corr_threshold, type(bc_corr_threshold))
+print(bc_corr_filter, type(bc_corr_filter))
 
 BC_CRS_raw = defaultdict(dict)
 counter = 0
@@ -25,10 +27,20 @@ maps_score = {}
 maps_count_fwd = {}
 maps_count_rev = {}
 
+
 #################################################
 ####      Mapping barcodes and alignments    ####
 #################################################
 # Create the first BC_CRS_raw dictionary by reading bc and crs files, then guide file mode-specific
+# BC_CRS_raw = {
+    
+#     'barcode1': {'CRS1': [[score1, score2, ...], read_counts],
+#                 'CRS10': [[score1, score2, ...], read_counts]},
+                
+#     'barcode2': {'CRS2': [[score1, score2, ...], read_counts]},
+
+#     ...}
+
 with gzip.open(bc_file_path, 'rt') as bc_file, \
         pysam.AlignmentFile(crs_file_path, 'rb') as crs_file:
         if mode == "trans":
@@ -50,8 +62,10 @@ with gzip.open(bc_file_path, 'rt') as bc_file, \
 
                 # If there is more than one alignment for a sequence, check for orientation and amount of reads
                 if bamline.query_name != readname_fastq:
+                    # For bulk mode, accept only reads with 1 fow and 1 rev aligments
                     if mode == "bulk":
                         considered = [k for k in maps_score if maps_count_fwd.get(k, 0) == 1 and maps_count_rev.get(k, 0) == 1]
+                    # For other modes, accept reads with only 1 fow alignment and 0 rev
                     else:
                         considered = [k for k in maps_score if maps_count_fwd.get(k, 0) == 0 and maps_count_rev.get(k, 0) == 1]
                 
@@ -108,6 +122,13 @@ with gzip.open(bc_file_path, 'rt') as bc_file, \
 #############################################
 #There are some barcodes that get assigned to multiple CRS. actually this happens a lot. In these cases count how often this happens but assign the barcode to the
 # CRS that is supported with more reads, buty report the number of reads supporting a different assignment. This does not remove anything 
+# BC_CRS = {
+    
+#     'barcode1': ['CRS1', [score1, score2, ...], read_counts, other_CRSs_read_counts],
+
+#     'barcode2': ['CRS2', [score3, score4, ...], read_counts, other_CRSs_read_counts],
+
+#     ...}
 
 total_reads = 0
 BC_CRS = defaultdict(list)
@@ -120,14 +141,6 @@ for barcode, crs in BC_CRS_raw.items():
     for c in sorted_crs[1:]:
         BC_CRS[barcode][3] += crs[c][1]
 print(f"Cleaned dictionary BC_CRS with the length {len(BC_CRS)} was created")
-
-###
-
-# # Print head of the cleaned dic to make sure it was created correctly
-# for key, value in islice(CRS_BC.items(), 5):
-#     print(f"{key}: {value}")
-
-###
 
 # Revert dictionary to the crs-bc association from bc-crs
 CRS_BC = defaultdict(list)
@@ -145,19 +158,13 @@ print("CRS_BC length: :", len(CRS_BC))
 # If two barcodes map to the same CRS and are similar, add the less abundant barcode to the more abundant one
 # Rank barcodes per CRS by the read counts and start with comparison of barcode with the lowest to one with the highest read counts
 
-BC_CRS_fixed, total_mapped_reads = correct_barcodes(BC_CRS, CRS_BC)
+BC_CRS_fixed, total_mapped_reads = correct_barcodes(BC_CRS, CRS_BC, int(bc_corr_threshold), bc_corr_filter)
 
 print(f"Total mapped reads: {total_mapped_reads}")
 print(f"Length of BC_CRS: {len(BC_CRS)}")
 print(f"Length of BC_CRS_fixed: {len(BC_CRS_fixed)}")
 
-###
 
-# # Print head of the created BC_CRS_fixed after barcode correction
-# for key, value in islice(BC_CRS_fixed.items(), 5):
-#     print(f"{key}: {value}")
-
-###
 #############################################
 ####         Output results to csv       ####
 #############################################

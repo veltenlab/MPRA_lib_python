@@ -12,7 +12,7 @@ timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 rule all:
     input:
         f"results/{mode}/alignment_crs.bam" if config["mode"] != "trans" else [f"results/{mode}/alignment_crs.bam", f"results/{mode}/alignment_guide.bam"],
-        f"results/{mode}/counts_matrix_{timestamp}.csv.gz"
+        f"results/{mode}/counts_matrix_{timestamp}.csv.gz",
         # f"results/{mode}/report_{timestamp}.html"
 
 # Rule to check if reference exists and create .fa if necessary
@@ -96,13 +96,16 @@ rule process_files:
     input:
         crs = f"results/{mode}/alignment_crs.bam",
         bc = config["input_files"]["bc"],
-        guide = f"results/{mode}/alignment_guide.bam" if mode == "trans" else (config["input_files"]["guide"] if mode == "sc" else None),
+        guide = f"results/{mode}/alignment_guide.bam" if mode == "trans" else (config["input_files"]["guide"] if mode == "sc" else None)
     output:
         csv = f"results/{mode}/counts_matrix_{timestamp}.csv.gz"
+    params:
+        threshold = config["bc_corr_threshold"],
+        filter_bc = config["bc_corr_filtering"]
     shell:
         """
         echo "Creating association library"
-        python scripts/association.py {mode} {input.crs} {input.bc} {input.guide} {output.csv}
+        python scripts/association.py {mode} {input.crs} {input.bc} {input.guide} {output.csv} {params.threshold} {params.filter_bc}
         """
 
 # # Rule to generate the HTML report using R Markdown
@@ -115,29 +118,4 @@ rule process_files:
 #     shell:
 #         """
 #         Rscript -e "rmarkdown::render(input = '{input.rmd}', output_file = '{output.html}', params = list(data_file = '{input.csv}'))"
-#         """
-
-# # Rule to generate the HTML report using R Markdown
-# rule generate_report:
-#     input:
-#         rmd = "scripts/generate_report.Rmd"
-#         csv = f"results/{mode}/counts_matrix_{timestamp}.csv.gz"
-#     output:
-#         html = f"results/{mode}/report_{timestamp}.csv.gz"
-#     shell:
-#         """
-#         {load_modules()}
-#         Rscript -e "rmarkdown::render('scripts/generate_report.Rmd', params=list(input='{input.csv_gz}'), output_file='{output.html}')"
-
-#         Rscript -e "rmarkdown::render(input = '{input.rmd}', output_file = '{output.html}', params = list(data_file = '{input.csv}'))"
-#         ""
-
-# rule render_rmarkdown:
-#     input:
-#         "report.Rmd"
-#     output:
-#         "report.html"
-#     script:
-#         """
-#         Rscript -e "rmarkdown::render('{input}', output_file='{output}')"
 #         """
